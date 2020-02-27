@@ -1,0 +1,26 @@
+[package]
+authors = ["huynhtrankhanh"]
+edition = "2018"
+name = "parlance"
+version = "0.1.0"
+[build-dependencies]
+capnpc = "0.10.2"
+
+[dependencies]
+async-std = { path = "async-std", features = ["unstable"] }
+capnp = "0.12.1"
+capnp-rpc = "0.12.0"
+checked = "0.5.0"
+chrono = "0.4.10"
+clap = "2.33.0"
+futures = "0.3.1"
+futures-intrusive = "0.2.2"
+rusqlite = { version = "0.21.0", features = ["bundled"] }
+rust-crypto = "0.2.36"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0.44"
+base64 = "0.11.0"
+num_cpus = "1.12.0"
+rand = "0.7.3"
+sodiumoxide = "0.2.5"
+blake3 = "0.2.1"

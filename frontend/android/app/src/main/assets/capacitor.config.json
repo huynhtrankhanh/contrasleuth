@@ -1,0 +1,13 @@
+{
+  "appId": "network.parlance",
+  "appName": "frontend",
+  "bundledWebRuntime": false,
+  "npmClient": "npm",
+  "webDir": "build",
+  "cordova": {},
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 0
+    }
+  }
+}

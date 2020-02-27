@@ -1,0 +1,20 @@
+{
+  "name": "build-scripts",
+  "version": "1.0.0",
+  "main": "index.js",
+  "license": "MIT",
+  "scripts": {
+    "test": "tsc *.ts --esModuleInterop --outDir build && ava --timeout=60m"
+  },
+  "devDependencies": {
+    "ava": "^3.1.0"
+  },
+  "dependencies": {
+    "@ava/typescript": "^1.0.0",
+    "@types/split2": "^2.1.6",
+    "@types/uuid": "^3.4.7",
+    "split2": "^3.1.1",
+    "typescript": "^3.7.5",
+    "uuid": "^3.4.0"
+  }
+}

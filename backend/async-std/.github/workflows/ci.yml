@@ -1,0 +1,131 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - master
+      - staging
+      - trying
+
+env:
+  RUSTFLAGS: -Dwarnings
+
+jobs:
+  build_and_test:
+    name: Build and test
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macOS-latest]
+        rust: [nightly, beta, stable]
+
+    steps:
+    - uses: actions/checkout@master
+
+    - name: Install ${{ matrix.rust }}
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: ${{ matrix.rust }}
+        override: true
+
+    - name: check
+      uses: actions-rs/cargo@v1
+      with:
+        command: check
+        args: --all --bins --tests
+
+    - name: check unstable
+      uses: actions-rs/cargo@v1
+      with:
+        command:  check
+        args: --features unstable --all --bins --examples --tests
+
+    - name: check bench
+      uses: actions-rs/cargo@v1
+      if: matrix.rust == 'nightly'
+      with:
+        command:  check
+        args: --benches
+
+    - name: check std only
+      uses: actions-rs/cargo@v1
+      with:
+        command:  check
+        args: --no-default-features --features std
+
+    - name: check attributes
+      uses: actions-rs/cargo@v1
+      with:
+        command:  check
+        args: --features attributes
+
+    - name: tests
+      uses: actions-rs/cargo@v1
+      with:
+        command: test
+        args: --all --features "unstable attributes"
+
+    - name: documentation test
+      uses: actions-rs/cargo@v1
+      with:
+        command: test
+        args: --doc --features "unstable attributes"
+
+  build__with_no_std:
+    name: Build with no-std
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@master
+
+    - name: setup
+      run: |
+        rustup default nightly
+        rustup target add thumbv7m-none-eabi
+
+    - name: check no_std
+      uses: actions-rs/cargo@v1
+      with:
+        command:  check
+        args: --no-default-features --features alloc --target thumbv7m-none-eabi -Z avoid-dev-deps
+
+  check_fmt_and_docs:
+    name: Checking fmt and docs
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@master
+
+    - uses: actions-rs/toolchain@v1
+      with:
+          profile: minimal
+          toolchain: nightly
+          override: true
+          components: rustfmt
+
+    - name: setup
+      run: |
+        rustup component add rustfmt
+        test -x $HOME/.cargo/bin/mdbook || ./ci/install-mdbook.sh
+        rustc --version
+
+    - name: mdbook
+      run: |
+        mdbook build docs
+    - name: fmt
+      run: cargo fmt --all -- --check
+
+    - name: Docs
+      run: cargo doc --features docs
+
+  # clippy_check:
+  #   name: Clippy check
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - uses: actions/checkout@v1
+  #     - name: Install rust
+  #       run: rustup update beta && rustup default beta
+  #     - name: Install clippy
+  #       run: rustup component add clippy
+  #     - name: clippy
+  #       run: cargo clippy --all --features unstable

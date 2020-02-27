@@ -1,0 +1,61 @@
+@import "reset.css";
+
+button {
+  border: none;
+  outline: none;
+  margin: 0;
+  padding: 0;
+  appearance: none;
+  font-size: inherit;
+  font-family: inherit;
+  font-weight: inherit;
+  cursor: pointer;
+}
+
+@font-face {
+  font-family: "Fira Sans";
+  font-style: normal;
+  font-weight: 400;
+  src: local("Fira Sans Regular"), local("FiraSans-Regular"),
+    url("fonts/fira-sans-v10-latin-ext_cyrillic_vietnamese_greek-ext_cyrillic-ext_latin_greek-regular.woff2")
+      format("woff2"),
+    url("fonts/fira-sans-v10-latin-ext_cyrillic_vietnamese_greek-ext_cyrillic-ext_latin_greek-regular.woff")
+      format("woff");
+}
+
+@font-face {
+  font-family: "Fira Sans";
+  font-style: italic;
+  font-weight: 400;
+  src: local("Fira Sans Italic"), local("FiraSans-Italic"),
+    url("fonts/fira-sans-v10-latin-ext_cyrillic_vietnamese_greek-ext_cyrillic-ext_latin_greek-italic.woff2")
+      format("woff2"),
+    url("fonts/fira-sans-v10-latin-ext_cyrillic_vietnamese_greek-ext_cyrillic-ext_latin_greek-italic.woff")
+      format("woff");
+}
+
+@font-face {
+  font-family: "Fira Sans";
+  font-style: normal;
+  font-weight: 500;
+  src: local("Fira Sans Medium"), local("FiraSans-Medium"),
+    url("fonts/fira-sans-v10-latin-ext_cyrillic_vietnamese_greek-ext_cyrillic-ext_latin_greek-500.woff2")
+      format("woff2"),
+    url("fonts/fira-sans-v10-latin-ext_cyrillic_vietnamese_greek-ext_cyrillic-ext_latin_greek-500.woff")
+      format("woff");
+}
+
+@font-face {
+  font-family: "Fira Sans";
+  font-style: italic;
+  font-weight: 500;
+  src: local("Fira Sans Medium Italic"), local("FiraSans-MediumItalic"),
+    url("fonts/fira-sans-v10-latin-ext_cyrillic_vietnamese_greek-ext_cyrillic-ext_latin_greek-500italic.woff2")
+      format("woff2"),
+    url("fonts/fira-sans-v10-latin-ext_cyrillic_vietnamese_greek-ext_cyrillic-ext_latin_greek-500italic.woff")
+      format("woff");
+}
+
+body {
+  font-family: "Fira Sans" !important;
+}
