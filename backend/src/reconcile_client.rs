@@ -1,4 +1,4 @@
-use crate::inventory::{get_all_after_counter, get_message, InMemory, OnDisk};
+use crate::inventory::{get_message, get_one_after_counter, InMemory, OnDisk};
 use crate::mpmc_manual_reset_event::MPMCManualResetEvent;
 use crate::reconcile_capnp::reconcile as Reconcile;
 use async_std::sync::{RwLock, Sender};
@@ -71,12 +71,14 @@ pub async fn reconcile(
         )
         .unwrap();
 
-    let mut counter = 0;
+    let mut counter = 0u128;
 
     loop {
         {
-            let (hashes, final_counter) = get_all_after_counter(&in_memory_tx, counter).await;
-            while let Some(hash) = hashes.recv().await {
+            while let Some((hash, new_counter)) =
+                get_one_after_counter(&in_memory_tx, counter).await
+            {
+                counter = new_counter;
                 {
                     let mut request = reconcile.test_request();
                     request.get().set_hash(&hash);
@@ -95,10 +97,6 @@ pub async fn reconcile(
                         .set_expiration_time(message.expiration_time);
                     request.send().promise.await?;
                 }
-            }
-
-            if let Some(result) = final_counter.recv().await {
-                counter = result;
             }
         }
 

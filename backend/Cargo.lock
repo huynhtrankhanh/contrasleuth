@@ -797,6 +797,7 @@ dependencies = [
  "clap",
  "futures",
  "futures-intrusive",
+ "lazy_static",
  "num_cpus",
  "rand 0.7.3",
  "rusqlite",

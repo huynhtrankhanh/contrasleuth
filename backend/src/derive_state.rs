@@ -1,4 +1,6 @@
-use crate::inventory::{get_expiration_time, get_message, InMemory, Mutation, OnDisk};
+use crate::inventory::{
+    get_expiration_time, get_message, get_one_after_counter, InMemory, Mutation, OnDisk,
+};
 use crate::private_box::{decrypt, encrypt};
 use async_std::sync::{channel, Receiver, Sender};
 use async_std::task;
@@ -7,28 +9,34 @@ use sodiumoxide::crypto::box_;
 use sodiumoxide::crypto::secretbox;
 use sodiumoxide::crypto::sign;
 use sodiumoxide::crypto::sign::verify;
+use sodiumoxide::randombytes::randombytes;
 use std::sync::Arc;
 
+#[derive(Debug)]
 pub enum AutosavePreference {
     Autosave,
     Manual,
 }
 
+#[derive(Debug)]
 pub struct PublicHalf {
     public_encryption_key: Vec<u8>,
     public_signing_key: Vec<u8>,
 }
 
+#[derive(Debug)]
 pub enum RichTextFormat {
     Plaintext,
     Markdown,
 }
 
+#[derive(Debug)]
 pub struct Attachment {
     mime_type: String,
     blob: Vec<u8>,
 }
 
+#[derive(Debug)]
 pub struct Message {
     sender: PublicHalf,
     in_reply_to: Option<Vec<u8>>,
@@ -38,9 +46,33 @@ pub struct Message {
     attachments: Vec<Attachment>,
 }
 
+#[derive(Debug)]
 pub struct Contact {
     label: String,
     public_half: PublicHalf,
+}
+
+#[derive(Debug)]
+pub struct StoredContact {
+    contact: Contact,
+    global_id: Vec<u8>,
+}
+
+#[derive(Debug)]
+pub struct StoredMessage {
+    message: Message,
+    expiration_time: Option<i64>,
+    inbox_id: Vec<u8>,
+    global_id: Vec<u8>,
+    message_type: MessageType,
+}
+
+#[derive(Debug)]
+pub struct Inbox {
+    global_id: Vec<u8>,
+    label: String,
+    public_half: PublicHalf,
+    autosave_preference: AutosavePreference,
 }
 
 pub enum Command {
@@ -60,7 +92,12 @@ pub enum Command {
         inbox_id: Vec<u8>,
     },
     EncodeMessage {
-        message: Message,
+        in_reply_to: Option<Vec<u8>>,
+        disclosed_recipients: Vec<PublicHalf>,
+        rich_text_format: RichTextFormat,
+        content: String,
+        attachments: Vec<Attachment>,
+        hidden_recipients: Vec<Vec<u8>>,
         inbox_id: Vec<u8>,
         blob_tx: Sender<Vec<u8>>,
     },
@@ -87,6 +124,7 @@ pub enum Command {
     SetContactPublicHalf {
         contact_id: Vec<u8>,
         public_half: PublicHalf,
+        id_tx: Sender<Vec<u8>>,
     },
     DeleteContact {
         contact_id: Vec<u8>,
@@ -95,12 +133,135 @@ pub enum Command {
         first_ten_bytes_of_id: Vec<u8>,
         public_half_tx: Sender<PublicHalf>,
     },
+    RequestStateDump {
+        inbox_tx: Sender<Inbox>,
+        stored_message_tx: Sender<StoredMessage>,
+        contact_tx: Sender<StoredContact>,
+    },
+    Stop,
 }
 
+pub async fn new_inbox(tx: &Sender<Command>, label: String) -> Vec<u8> {
+    let (id_tx, id_rx) = channel(1);
+    tx.send(Command::NewInbox { label, id_tx }).await;
+    id_rx.recv().await.unwrap()
+}
+
+pub async fn set_autosave_preference(
+    tx: &Sender<Command>,
+    inbox_id: Vec<u8>,
+    autosave_preference: AutosavePreference,
+) {
+    tx.send(Command::SetAutosavePreference {
+        inbox_id,
+        autosave_preference,
+    })
+    .await;
+}
+
+pub async fn set_inbox_label(tx: &Sender<Command>, label: String, inbox_id: Vec<u8>) {
+    tx.send(Command::SetInboxLabel { label, inbox_id }).await;
+}
+
+pub async fn delete_inbox(tx: &Sender<Command>, inbox_id: Vec<u8>) {
+    tx.send(Command::DeleteInbox { inbox_id }).await;
+}
+
+pub async fn encode_message(
+    tx: &Sender<Command>,
+    in_reply_to: Option<Vec<u8>>,
+    disclosed_recipients: Vec<PublicHalf>,
+    rich_text_format: RichTextFormat,
+    content: String,
+    attachments: Vec<Attachment>,
+    hidden_recipients: Vec<Vec<u8>>,
+    inbox_id: Vec<u8>,
+) -> Vec<u8> {
+    let (blob_tx, blob_rx) = channel(1);
+    tx.send(Command::EncodeMessage {
+        in_reply_to,
+        disclosed_recipients,
+        rich_text_format,
+        content,
+        attachments,
+        hidden_recipients,
+        inbox_id,
+        blob_tx,
+    })
+    .await;
+    blob_rx.recv().await.unwrap()
+}
+
+pub async fn save_message(tx: &Sender<Command>, message_id: Vec<u8>, inbox_id: Vec<u8>) {
+    tx.send(Command::SaveMessage {
+        message_id,
+        inbox_id,
+    })
+    .await;
+}
+
+pub async fn unsave_message(tx: &Sender<Command>, message_id: Vec<u8>, inbox_id: Vec<u8>) {
+    tx.send(Command::UnsaveMessage {
+        message_id,
+        inbox_id,
+    })
+    .await;
+}
+
+pub async fn hide_message(tx: &Sender<Command>, message_id: Vec<u8>, inbox_id: Vec<u8>) {
+    tx.send(Command::HideMessage {
+        message_id,
+        inbox_id,
+    })
+    .await;
+}
+
+pub async fn new_contact(tx: &Sender<Command>, contact: Contact) -> Vec<u8> {
+    let (id_tx, id_rx) = channel(1);
+    tx.send(Command::NewContact { contact, id_tx }).await;
+    id_rx.recv().await.unwrap()
+}
+
+pub async fn set_contact_label(tx: &Sender<Command>, contact_id: Vec<u8>, label: String) {
+    tx.send(Command::SetContactLabel { contact_id, label })
+        .await;
+}
+
+pub async fn lookup_public_half(
+    tx: &Sender<Command>,
+    first_ten_bytes_of_id: Vec<u8>,
+    public_half_tx: Sender<PublicHalf>,
+) {
+    tx.send(Command::LookupPublicHalf {
+        first_ten_bytes_of_id,
+        public_half_tx,
+    })
+    .await;
+}
+
+pub async fn request_state_dump(
+    tx: &Sender<Command>,
+    inbox_tx: Sender<Inbox>,
+    stored_message_tx: Sender<StoredMessage>,
+    contact_tx: Sender<StoredContact>,
+) {
+    tx.send(Command::RequestStateDump {
+        inbox_tx,
+        stored_message_tx,
+        contact_tx,
+    })
+    .await;
+}
+
+pub async fn stop(tx: &Sender<Command>) {
+    tx.send(Command::Stop).await;
+}
+
+#[derive(Debug)]
 pub enum MessageType {
     Saved,
     Unsaved,
-    Ignored,
+    Hidden,
 }
 
 enum Multiplexed {
@@ -131,6 +292,7 @@ fn multiplex(
     }
 }
 
+#[derive(Debug)]
 pub enum Event {
     Message {
         message: Message,
@@ -157,6 +319,21 @@ pub enum Event {
     },
 }
 
+lazy_static! {
+    static ref calculate_public_half_id_domain: Vec<u8> = {
+        let domain = blake3::hash(b"PARLANCE CALCULATE PUBLIC HALF ID");
+        domain.as_bytes().to_vec()
+    };
+}
+
+fn calculate_public_half_id(public_encryption_key: &[u8], public_signing_key: &[u8]) -> Vec<u8> {
+    let mut hasher = blake3::Hasher::new();
+    hasher.update(&public_encryption_key);
+    hasher.update(&public_signing_key);
+    hasher.update(&calculate_public_half_id_domain);
+    hasher.finalize().as_bytes().to_vec()
+}
+
 /// This task is meant to be spawned. It executes blocking DB operations.
 pub async fn derive(
     in_memory_tx: Sender<InMemory>,
@@ -166,6 +343,13 @@ pub async fn derive(
     connection: Connection,
     event_tx: Sender<Event>,
 ) {
+    let obfuscate_public_half_domain = blake3::hash(b"PARLANCE OBFUSCATE PUBLIC HALF");
+    let obfuscate_public_half_domain = obfuscate_public_half_domain.as_bytes();
+    let obfuscate_public_half_domain = &obfuscate_public_half_domain[..];
+    let calculate_message_id_domain = blake3::hash(b"PARLANCE CALCULATE MESSAGE ID");
+    let calculate_message_id_domain = calculate_message_id_domain.as_bytes();
+    let calculate_message_id_domain = &calculate_message_id_domain[..];
+
     let init = |query| {
         connection.execute(query, params![]).unwrap();
     };
@@ -322,15 +506,128 @@ pub async fn derive(
         })
     }
 
-    fn derive_public_half_encryption_key(first_ten_bytes: &[u8]) -> secretbox::Key {
+    let derive_public_half_encryption_key = |first_ten_bytes: &[u8]| {
         assert_eq!(first_ten_bytes.len(), 10);
 
         let mut hasher = blake3::Hasher::new();
         hasher.update(first_ten_bytes);
-        hasher.update(b"PARLANCE PUBLIC HALF OBFUSCATION");
+        hasher.update(&obfuscate_public_half_domain);
         let mut hash = [0; secretbox::KEYBYTES];
         hasher.finalize_xof().fill(&mut hash);
         secretbox::Key::from_slice(&hash).unwrap()
+    };
+
+    async fn purge_or_flag(
+        connection: &Connection,
+        event_tx: &Sender<Event>,
+        message_id: Vec<u8>,
+        inbox_id: Vec<u8>,
+        flag: &str,
+    ) {
+        let mut statement = connection
+            .prepare(include_str!("../sql/C. Frontend/Fetch derivations.sql"))
+            .unwrap();
+        let mut rows = statement.query(params![&message_id, &inbox_id]).unwrap();
+        match rows.next().unwrap() {
+            Some(_) => {
+                connection
+                    .execute(
+                        include_str!("../sql/C. Frontend/Update message type.sql"),
+                        params![flag, &message_id, &inbox_id],
+                    )
+                    .unwrap();
+            }
+            None => {
+                connection
+                    .execute(
+                        include_str!("../sql/C. Frontend/Delete message.sql"),
+                        params![&message_id, &inbox_id],
+                    )
+                    .unwrap();
+                event_tx
+                    .send(Event::MessageExpired {
+                        global_id: message_id,
+                        inbox_id,
+                    })
+                    .await;
+            }
+        }
+    }
+
+    let parse_public_half = |plaintext: &mut &[u8]| {
+        let deserialized =
+            match capnp::serialize::read_message(plaintext, capnp::message::ReaderOptions::new()) {
+                Ok(deserialized) => deserialized,
+                Err(_) => return None,
+            };
+        let reader = match deserialized.get_root::<crate::message_capnp::public_key::Reader>() {
+            Ok(reader) => reader,
+            Err(_) => return None,
+        };
+        let public_encryption_key: Vec<u8> = match reader.get_public_encryption_key() {
+            Ok(key) => key.to_vec(),
+            Err(_) => return None,
+        };
+        if public_encryption_key.len() != box_::PUBLICKEYBYTES {
+            return None;
+        }
+        let public_signing_key: Vec<u8> = match reader.get_public_signing_key() {
+            Ok(key) => key.to_vec(),
+            Err(_) => return None,
+        };
+        if public_signing_key.len() != sign::PUBLICKEYBYTES {
+            return None;
+        }
+
+        Some(PublicHalf {
+            public_encryption_key,
+            public_signing_key,
+        })
+    };
+
+    let deobfuscate_public_half = |payload: &[u8], first_ten_bytes: &[u8]| {
+        if payload.len() < secretbox::NONCEBYTES {
+            return None;
+        }
+
+        let nonce = secretbox::Nonce::from_slice(&payload[..secretbox::NONCEBYTES]).unwrap();
+        let message = &payload[secretbox::NONCEBYTES..];
+
+        let key = derive_public_half_encryption_key(first_ten_bytes);
+
+        match secretbox::open(message, &nonce, &key) {
+            Ok(it) => Some(it),
+            Err(_) => None,
+        }
+    };
+
+    async fn stored_message_expiration_time(
+        connection: &Connection,
+        in_memory_tx: &Sender<InMemory>,
+        global_id: &Vec<u8>,
+        inbox_id: &Vec<u8>,
+    ) -> Option<i64> {
+        let mut statement = connection
+            .prepare(include_str!("../sql/C. Frontend/Fetch derivations.sql"))
+            .unwrap();
+        let mut rows = statement.query(params![&global_id, &inbox_id]).unwrap();
+
+        let mut max_expiration_time: Option<i64> = None;
+        while let Some(row) = rows.next().unwrap() {
+            let inventory_item: Arc<Vec<u8>> = Arc::new(row.get(0).unwrap());
+            if let Some(expiration_time) = get_expiration_time(&in_memory_tx, inventory_item).await
+            {
+                match max_expiration_time {
+                    None => max_expiration_time = Some(expiration_time),
+                    Some(it) => {
+                        if expiration_time > it {
+                            max_expiration_time = Some(expiration_time);
+                        }
+                    }
+                }
+            }
+        }
+        max_expiration_time
     }
 
     let (multiplexed_tx, multiplexed_rx) = channel(1);
@@ -356,56 +653,17 @@ pub async fn derive(
                         let private_encryption_key: Vec<u8> = row.get(3).unwrap();
                         let inbox_id: Vec<u8> = row.get(0).unwrap();
 
-                        if payload.len() >= secretbox::NONCEBYTES {
+                        {
                             let public_encryption_key: Vec<u8> = row.get(2).unwrap();
                             let public_signing_key: Vec<u8> = row.get(4).unwrap();
-                            let first_ten_bytes = &inbox_id[0..10];
-                            let key = derive_public_half_encryption_key(first_ten_bytes);
+                            let first_ten_bytes = &inbox_id[..10];
 
-                            let nonce =
-                                secretbox::Nonce::from_slice(&payload[..secretbox::NONCEBYTES])
-                                    .unwrap();
-                            let message = &payload[secretbox::NONCEBYTES..];
-
-                            if let Ok(plaintext) = secretbox::open(message, &nonce, &key) {
-                                let parse = || {
-                                    let deserialized = match capnp::serialize::read_message(
-                                        &mut plaintext.as_slice(),
-                                        capnp::message::ReaderOptions::new(),
-                                    ) {
-                                        Ok(deserialized) => deserialized,
-                                        Err(_) => return None,
-                                    };
-                                    let reader = match deserialized
-                                        .get_root::<crate::message_capnp::public_key::Reader>(
-                                    ) {
-                                        Ok(reader) => reader,
-                                        Err(_) => return None,
-                                    };
-                                    let public_encryption_key: Vec<u8> =
-                                        match reader.get_public_encryption_key() {
-                                            Ok(key) => key.to_vec(),
-                                            Err(_) => return None,
-                                        };
-                                    if public_encryption_key.len() != box_::PUBLICKEYBYTES {
-                                        return None;
-                                    }
-                                    let public_signing_key: Vec<u8> =
-                                        match reader.get_public_signing_key() {
-                                            Ok(key) => key.to_vec(),
-                                            Err(_) => return None,
-                                        };
-                                    if public_signing_key.len() != sign::PUBLICKEYBYTES {
-                                        return None;
-                                    }
-
-                                    Some(PublicHalf {
-                                        public_encryption_key,
-                                        public_signing_key,
-                                    })
-                                };
-
-                                if let Some(public_half) = parse() {
+                            if let Some(plaintext) =
+                                deobfuscate_public_half(&payload, &first_ten_bytes)
+                            {
+                                if let Some(public_half) =
+                                    parse_public_half(&mut plaintext.as_slice())
+                                {
                                     if public_half.public_encryption_key == public_encryption_key
                                         && public_half.public_signing_key == public_signing_key
                                     {
@@ -422,7 +680,7 @@ pub async fn derive(
                         }
 
                         let (message_type, message_type_string) = {
-                            let preference: String = row.get(7).unwrap();
+                            let preference: String = row.get(6).unwrap();
                             if preference == "autosave" {
                                 (MessageType::Saved, "saved")
                             } else {
@@ -435,64 +693,51 @@ pub async fn derive(
                             None => continue,
                         };
 
-                        let global_id = blake3::hash(&plaintext).as_bytes().to_vec();
+                        let global_id = {
+                            let mut hasher = blake3::Hasher::new();
+                            hasher.update(&plaintext);
+                            hasher.update(&calculate_message_id_domain);
+                            hasher.finalize().as_bytes().to_vec()
+                        };
 
-                        let mut statement = connection
-                            .prepare(include_str!("../sql/C. Frontend/Fetch derivations.sql"))
-                            .unwrap();
-                        let mut rows = statement
-                            .query(params![&global_id as &Vec<u8>, &inbox_id])
-                            .unwrap();
-
-                        while let Some(row) = rows.next().unwrap() {
-                            connection
-                                .execute(
-                                    include_str!("../sql/C. Frontend/Insert derivation.sql"),
-                                    params![&hash.clone() as &Vec<u8>, &global_id],
-                                )
-                                .unwrap();
-
-                            let inventory_item: Vec<u8> = row.get(0).unwrap();
-                            let max_expiration_time = {
-                                let mut max_expiration_time = match get_expiration_time(
-                                    &in_memory_tx,
-                                    std::sync::Arc::new(inventory_item),
-                                )
-                                .await
+                        {
+                            let stored_message_expiration_time = stored_message_expiration_time(
+                                &connection,
+                                &in_memory_tx,
+                                &global_id,
+                                &inbox_id,
+                            )
+                            .await;
+                            let current_expiration_time =
+                                get_expiration_time(&in_memory_tx, hash.clone()).await;
+                            if let Some(current_expiration_time) = current_expiration_time {
+                                if let Some(stored_message_expiration_time) =
+                                    stored_message_expiration_time
                                 {
-                                    Some(it) => it,
-                                    None => continue,
-                                };
-
-                                while let Some(row) = rows.next().unwrap() {
-                                    let inventory_item: Vec<u8> = row.get(0).unwrap();
-                                    let expiration_time = match get_expiration_time(
-                                        &in_memory_tx,
-                                        Arc::new(inventory_item),
-                                    )
-                                    .await
-                                    {
-                                        Some(it) => it,
-                                        None => continue,
-                                    };
-
-                                    if expiration_time > max_expiration_time {
-                                        max_expiration_time = expiration_time;
+                                    connection
+                                        .execute(
+                                            include_str!(
+                                                "../sql/C. Frontend/Insert derivation.sql"
+                                            ),
+                                            params![
+                                                &hash.clone() as &Vec<u8>,
+                                                &global_id,
+                                                &inbox_id
+                                            ],
+                                        )
+                                        .unwrap();
+                                    if current_expiration_time > stored_message_expiration_time {
+                                        event_tx
+                                            .send(Event::MessageExpirationTimeExtended {
+                                                global_id: global_id.clone(),
+                                                inbox_id: inbox_id.clone(),
+                                                expiration_time: current_expiration_time,
+                                            })
+                                            .await;
                                     }
+                                    continue 'outer;
                                 }
-                                max_expiration_time
-                            };
-                            if expiration_time > max_expiration_time {
-                                event_tx
-                                    .send(Event::MessageExpirationTimeExtended {
-                                        global_id,
-                                        inbox_id,
-                                        expiration_time,
-                                    })
-                                    .await;
                             }
-
-                            continue 'outer;
                         }
 
                         let message = match parse(&mut plaintext.as_slice()) {
@@ -510,7 +755,7 @@ pub async fn derive(
                         connection
                             .execute(
                                 include_str!("../sql/C. Frontend/Insert derivation.sql"),
-                                params![&hash.clone() as &Vec<u8>, &global_id],
+                                params![&hash.clone() as &Vec<u8>, &global_id, &inbox_id],
                             )
                             .unwrap();
 
@@ -576,42 +821,651 @@ pub async fn derive(
                 }
             },
             Multiplexed::Command(command) => match command {
-                Command::NewInbox { label, id_tx } => {}
+                Command::NewInbox { label, id_tx } => {
+                    let (public_encryption_key, private_encryption_key) = box_::gen_keypair();
+                    let public_encryption_key = public_encryption_key.as_ref();
+                    let private_encryption_key = private_encryption_key.as_ref();
+                    let (public_signing_key, private_signing_key) = sign::gen_keypair();
+                    let public_signing_key = public_signing_key.as_ref();
+                    let private_signing_key = private_signing_key.as_ref();
+                    let global_id =
+                        calculate_public_half_id(&public_encryption_key, &public_signing_key);
+                    connection
+                        .execute(
+                            include_str!("../sql/C. Frontend/Create inbox.sql"),
+                            params![
+                                global_id,
+                                label,
+                                public_encryption_key,
+                                private_encryption_key,
+                                public_signing_key,
+                                private_signing_key
+                            ],
+                        )
+                        .unwrap();
+                    id_tx.send(global_id).await;
+                }
                 Command::SetAutosavePreference {
                     inbox_id,
                     autosave_preference,
-                } => {}
-                Command::SetInboxLabel { label, inbox_id } => {}
-                Command::DeleteInbox { inbox_id } => {}
+                } => {
+                    connection
+                        .execute(
+                            include_str!("../sql/C. Frontend/Update autosave preference.sql"),
+                            params![
+                                match autosave_preference {
+                                    AutosavePreference::Manual => "manual",
+                                    AutosavePreference::Autosave => "autosave",
+                                },
+                                inbox_id
+                            ],
+                        )
+                        .unwrap();
+                }
+                Command::SetInboxLabel { label, inbox_id } => {
+                    connection
+                        .execute(
+                            include_str!("../sql/C. Frontend/Update inbox label.sql"),
+                            params![label, inbox_id],
+                        )
+                        .unwrap();
+                }
+                Command::DeleteInbox { inbox_id } => {
+                    connection
+                        .execute(
+                            include_str!("../sql/C. Frontend/Delete all derivations.sql"),
+                            params![&inbox_id],
+                        )
+                        .unwrap();
+                    connection
+                        .execute(
+                            include_str!("../sql/C. Frontend/Delete all messages.sql"),
+                            params![&inbox_id],
+                        )
+                        .unwrap();
+                    connection
+                        .execute(
+                            include_str!("../sql/C. Frontend/Delete inbox.sql"),
+                            params![&inbox_id],
+                        )
+                        .unwrap();
+                }
                 Command::EncodeMessage {
-                    message,
+                    in_reply_to,
+                    disclosed_recipients,
+                    rich_text_format,
+                    content,
+                    attachments,
                     inbox_id,
                     blob_tx,
-                } => {}
+                    hidden_recipients,
+                } => {
+                    let mut statement = connection
+                        .prepare(include_str!("../sql/C. Frontend/Fetch inbox.sql"))
+                        .unwrap();
+                    let mut rows = statement.query(params![inbox_id]).unwrap();
+                    let row = rows.next().unwrap().unwrap();
+                    let public_encryption_key: Vec<u8> = row.get(2).unwrap();
+                    let public_signing_key: Vec<u8> = row.get(4).unwrap();
+                    let private_signing_key: Vec<u8> = row.get(5).unwrap();
+
+                    let mut builder = capnp::message::Builder::new_default();
+                    let mut serialized =
+                        builder.init_root::<crate::message_capnp::message::Builder>();
+                    match &in_reply_to {
+                        Some(id) => serialized.reborrow().init_in_reply_to().set_id(id),
+                        None => serialized.reborrow().init_in_reply_to().set_genesis(()),
+                    }
+                    let nonce = randombytes(10);
+                    serialized.set_nonce(&nonce);
+                    serialized.set_content(&content);
+                    match rich_text_format {
+                        RichTextFormat::Plaintext => serialized
+                            .reborrow()
+                            .init_rich_text_format()
+                            .set_plaintext(()),
+                        RichTextFormat::Markdown => serialized
+                            .reborrow()
+                            .init_rich_text_format()
+                            .set_markdown(()),
+                    }
+                    use std::convert::TryInto;
+                    {
+                        let length = disclosed_recipients.len();
+                        let mut list = serialized
+                            .reborrow()
+                            .init_disclosed_recipients(length.try_into().unwrap());
+                        for i in 0..length {
+                            let mut recipient = list.reborrow().get(i.try_into().unwrap());
+                            recipient.set_public_encryption_key(
+                                &disclosed_recipients[i].public_encryption_key,
+                            );
+                            recipient.set_public_signing_key(
+                                &disclosed_recipients[i].public_signing_key,
+                            );
+                        }
+                    }
+                    {
+                        let length = attachments.len();
+                        let mut list = serialized
+                            .reborrow()
+                            .init_attachments(length.try_into().unwrap());
+                        for i in 0..length {
+                            let mut attachment = list.reborrow().get(i.try_into().unwrap());
+                            attachment.set_mime_type(&attachments[i].mime_type);
+                            attachment.set_blob(&attachments[i].blob);
+                        }
+                    }
+
+                    let to_be_signed = {
+                        let mut buffer = Vec::new();
+                        capnp::serialize::write_message(&mut buffer, &builder).unwrap();
+                        buffer
+                    };
+
+                    let signed = sign::sign(
+                        &to_be_signed,
+                        &sign::SecretKey::from_slice(&private_signing_key).unwrap(),
+                    );
+
+                    let mut builder = capnp::message::Builder::new_default();
+                    let mut serialized =
+                        builder.init_root::<crate::message_capnp::unverified_message::Builder>();
+                    serialized.set_payload(&signed);
+                    serialized.set_public_encryption_key(&public_encryption_key);
+                    serialized.set_public_signing_key(&public_signing_key);
+
+                    let plaintext = {
+                        let mut buffer = Vec::new();
+                        capnp::serialize::write_message(&mut buffer, &builder).unwrap();
+                        buffer
+                    };
+
+                    let recipients = {
+                        let mut recipients = Vec::new();
+                        for i in 0..hidden_recipients.len() {
+                            recipients.push(hidden_recipients[i].as_ref());
+                        }
+
+                        for i in 0..disclosed_recipients.len() {
+                            recipients.push(disclosed_recipients[i].public_encryption_key.as_ref());
+                        }
+
+                        recipients.push(public_encryption_key.as_ref());
+
+                        recipients
+                    };
+
+                    blob_tx
+                        .send(match encrypt(&plaintext, &recipients) {
+                            Some(it) => it,
+                            None => continue,
+                        })
+                        .await;
+                }
                 Command::SaveMessage {
                     message_id,
                     inbox_id,
-                } => {}
+                } => {
+                    connection
+                        .execute(
+                            include_str!("../sql/C. Frontend/Update message type.sql"),
+                            params!["saved", message_id, inbox_id],
+                        )
+                        .unwrap();
+                }
                 Command::UnsaveMessage {
                     message_id,
                     inbox_id,
-                } => {}
+                } => {
+                    purge_or_flag(&connection, &event_tx, message_id, inbox_id, "unsaved").await;
+                }
                 Command::HideMessage {
                     message_id,
                     inbox_id,
-                } => {}
-                Command::NewContact { contact, id_tx } => {}
-                Command::SetContactLabel { contact_id, label } => {}
+                } => {
+                    purge_or_flag(&connection, &event_tx, message_id, inbox_id, "hidden").await;
+                }
+                Command::NewContact { contact, id_tx } => {
+                    let public_encryption_key = contact.public_half.public_encryption_key;
+                    let public_signing_key = contact.public_half.public_signing_key;
+                    let label = contact.label;
+                    let global_id =
+                        calculate_public_half_id(&public_encryption_key, &public_signing_key);
+                    connection
+                        .execute(
+                            include_str!("../sql/C. Frontend/Insert contact.sql"),
+                            params![&global_id, public_encryption_key, public_signing_key, label],
+                        )
+                        .unwrap();
+                    id_tx.send(global_id).await;
+                }
+                Command::SetContactLabel { contact_id, label } => {
+                    connection
+                        .execute(
+                            include_str!("../sql/C. Frontend/Update inbox label.sql"),
+                            params![label, contact_id],
+                        )
+                        .unwrap();
+                }
                 Command::SetContactPublicHalf {
                     contact_id,
                     public_half,
-                } => {}
-                Command::DeleteContact { contact_id } => {}
+                    id_tx,
+                } => {
+                    let new_id = calculate_public_half_id(
+                        &public_half.public_encryption_key,
+                        &public_half.public_signing_key,
+                    );
+                    connection
+                        .execute(
+                            include_str!("../sql/C. Frontend/Update public half.sql"),
+                            params![
+                                &public_half.public_encryption_key,
+                                &public_half.public_signing_key,
+                                &new_id,
+                                contact_id
+                            ],
+                        )
+                        .unwrap();
+                    id_tx.send(new_id).await;
+                }
+                Command::DeleteContact { contact_id } => {
+                    connection
+                        .execute(
+                            include_str!("../sql/C. Frontend/Delete contact.sql"),
+                            params![contact_id],
+                        )
+                        .unwrap();
+                }
                 Command::LookupPublicHalf {
                     first_ten_bytes_of_id,
                     public_half_tx,
-                } => {}
+                } => {
+                    let mut counter = 0u128;
+                    while let Some((hash, new_counter)) =
+                        get_one_after_counter(&in_memory_tx, counter).await
+                    {
+                        counter = new_counter;
+                        if let Some(message) = get_message(&on_disk_tx, hash).await {
+                            let payload = message.payload;
+                            if let Some(plaintext) =
+                                deobfuscate_public_half(&payload, &first_ten_bytes_of_id)
+                            {
+                                if let Some(public_half) =
+                                    parse_public_half(&mut plaintext.as_slice())
+                                {
+                                    let id = calculate_public_half_id(
+                                        &public_half.public_encryption_key,
+                                        &public_half.public_signing_key,
+                                    );
+                                    if &id[..10] == (&first_ten_bytes_of_id as &[u8]) {
+                                        public_half_tx.send(public_half).await;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                Command::RequestStateDump {
+                    inbox_tx,
+                    stored_message_tx,
+                    contact_tx,
+                } => {
+                    let mut statement = connection
+                        .prepare(include_str!("../sql/C. Frontend/Fetch inboxes.sql"))
+                        .unwrap();
+                    let mut rows = statement.query(params![]).unwrap();
+                    while let Some(row) = rows.next().unwrap() {
+                        let global_id: Vec<u8> = row.get(0).unwrap();
+                        let label: String = row.get(1).unwrap();
+                        let public_encryption_key: Vec<u8> = row.get(2).unwrap();
+                        let public_signing_key: Vec<u8> = row.get(4).unwrap();
+                        let autosave_preference: String = row.get(6).unwrap();
+                        inbox_tx
+                            .send(Inbox {
+                                global_id,
+                                label,
+                                public_half: PublicHalf {
+                                    public_encryption_key,
+                                    public_signing_key,
+                                },
+                                autosave_preference: if autosave_preference == "autosave" {
+                                    AutosavePreference::Autosave
+                                } else {
+                                    AutosavePreference::Manual
+                                },
+                            })
+                            .await;
+                    }
+                    drop(inbox_tx);
+
+                    let mut statement = connection
+                        .prepare(include_str!("../sql/C. Frontend/Fetch messages.sql"))
+                        .unwrap();
+                    let mut rows = statement.query(params![]).unwrap();
+                    while let Some(row) = rows.next().unwrap() {
+                        let global_id: Vec<u8> = row.get(0).unwrap();
+                        let message_type: String = row.get(1).unwrap();
+                        let message_type = if message_type == "unsaved" {
+                            MessageType::Unsaved
+                        } else if message_type == "saved" {
+                            MessageType::Saved
+                        } else if message_type == "hidden" {
+                            MessageType::Hidden
+                        } else {
+                            unreachable!()
+                        };
+                        let content: Vec<u8> = row.get(2).unwrap();
+                        let inbox_id: Vec<u8> = row.get(3).unwrap();
+
+                        let expiration_time = stored_message_expiration_time(
+                            &connection,
+                            &in_memory_tx,
+                            &global_id,
+                            &inbox_id,
+                        )
+                        .await;
+
+                        stored_message_tx
+                            .send(StoredMessage {
+                                expiration_time,
+                                global_id,
+                                inbox_id,
+                                message_type,
+                                message: parse(&mut content.as_slice()).unwrap(),
+                            })
+                            .await;
+                    }
+                    drop(stored_message_tx);
+
+                    let mut statement = connection
+                        .prepare(include_str!("../sql/C. Frontend/Fetch contacts.sql"))
+                        .unwrap();
+                    let mut rows = statement.query(params![]).unwrap();
+                    while let Some(row) = rows.next().unwrap() {
+                        let global_id = row.get(0).unwrap();
+                        let public_encryption_key = row.get(1).unwrap();
+                        let public_signing_key = row.get(2).unwrap();
+                        let label = row.get(3).unwrap();
+                        contact_tx
+                            .send(StoredContact {
+                                contact: Contact {
+                                    label,
+                                    public_half: PublicHalf {
+                                        public_encryption_key,
+                                        public_signing_key,
+                                    },
+                                },
+                                global_id,
+                            })
+                            .await;
+                    }
+                    drop(contact_tx);
+                }
+                Command::Stop => {
+                    return;
+                }
             },
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::init_inventory::init_inventory;
+    use futures::task::LocalSpawn;
+
+    #[test]
+    fn works_as_expected() {
+        sodiumoxide::init().unwrap();
+
+        // No need for a valid nonce value.
+        let nonce = 0xdeadbeefi64;
+
+        use chrono::Utc;
+        let now = Utc::now().timestamp();
+
+        let (in_memory_tx, in_memory_rx) = channel(1);
+        let (on_disk_tx, on_disk_rx) = channel(1);
+        let (mutate_tx, mutate_rx) = channel(1);
+        let (command_tx, command_rx) = channel(1);
+        let (event_tx, event_rx) = channel(1);
+
+        std::thread::spawn(move || {
+            let connection = Connection::open_in_memory().unwrap();
+            init_inventory(connection, mutate_tx, in_memory_rx, on_disk_rx);
+        });
+
+        let mut exec = futures::executor::LocalPool::new();
+        let spawner = exec.spawner();
+        {
+            let on_disk_tx = on_disk_tx.clone();
+            spawner
+                .spawn_local_obj(
+                    Box::new(async move {
+                        let connection = Connection::open_in_memory().unwrap();
+                        derive(
+                            in_memory_tx,
+                            on_disk_tx,
+                            mutate_rx,
+                            command_rx,
+                            connection,
+                            event_tx,
+                        )
+                        .await;
+                    })
+                    .into(),
+                )
+                .unwrap();
+        }
+
+        spawner
+            .spawn_local_obj(
+                Box::new(async move {
+                    let inbox_id = new_inbox(&command_tx, "Hello, World!".to_string()).await;
+
+                    let (hidden_recipient_public_key, hidden_recipient_private_key) =
+                        box_::gen_keypair();
+
+                    let message = encode_message(
+                        &command_tx,
+                        None,
+                        vec![PublicHalf {
+                            public_encryption_key: box_::gen_keypair().0.as_ref().to_vec(),
+                            public_signing_key: sign::gen_keypair().0.as_ref().to_vec(),
+                        }],
+                        RichTextFormat::Plaintext,
+                        "some content".to_string(),
+                        vec![Attachment {
+                            mime_type: "text/plain".to_string(),
+                            blob: b"some content".to_vec(),
+                        }],
+                        vec![hidden_recipient_public_key.as_ref().to_vec()],
+                        inbox_id.clone(),
+                    )
+                    .await;
+
+                    assert!(
+                        match decrypt(&message, hidden_recipient_private_key.as_ref()) {
+                            Some(_) => true,
+                            None => false,
+                        }
+                    );
+
+                    use crate::inventory;
+                    use crate::inventory::insert_message;
+
+                    insert_message(
+                        &on_disk_tx,
+                        inventory::Message {
+                            payload: message.clone(),
+                            nonce,
+                            expiration_time: now + 2,
+                        },
+                    )
+                    .await;
+
+                    let event = event_rx.recv().await.unwrap();
+
+                    let assert_message_content = |message: Message| {
+                        let sender_id = calculate_public_half_id(
+                            &message.sender.public_encryption_key,
+                            &message.sender.public_signing_key,
+                        );
+                        assert_eq!(sender_id, inbox_id);
+
+                        if let Some(_) = message.in_reply_to {
+                            panic!();
+                        }
+
+                        assert_eq!(message.disclosed_recipients.len(), 1);
+
+                        if let RichTextFormat::Markdown = message.rich_text_format {
+                            panic!();
+                        }
+
+                        assert_eq!(message.content, "some content".to_string());
+
+                        assert_eq!(message.attachments[0].mime_type, "text/plain".to_string());
+                        assert_eq!(message.attachments[0].blob, b"some content".to_vec());
+                    };
+
+                    let global_id = match event {
+                        Event::Message {
+                            message,
+                            message_type,
+                            global_id,
+                            inbox_id: this_inbox_id,
+                            expiration_time: _,
+                        } => {
+                            assert_message_content(message);
+
+                            assert_eq!(this_inbox_id, inbox_id);
+
+                            if let MessageType::Unsaved = message_type {
+                            } else {
+                                panic!();
+                            }
+
+                            global_id
+                        }
+                        _ => panic!(),
+                    };
+
+                    insert_message(
+                        &on_disk_tx,
+                        inventory::Message {
+                            payload: message.clone(),
+                            nonce,
+                            expiration_time: now + 1,
+                        },
+                    )
+                    .await;
+
+                    // No event should be emitted.
+
+                    insert_message(
+                        &on_disk_tx,
+                        inventory::Message {
+                            payload: message.clone(),
+                            nonce,
+                            expiration_time: now + 3,
+                        },
+                    )
+                    .await;
+
+                    let event = event_rx.recv().await.unwrap();
+                    match event {
+                        Event::MessageExpirationTimeExtended {
+                            global_id: this_global_id,
+                            inbox_id: this_inbox_id,
+                            expiration_time,
+                        } => {
+                            assert_eq!(global_id, this_global_id);
+                            assert_eq!(inbox_id, this_inbox_id);
+                            assert_eq!(expiration_time, now + 3);
+                        }
+                        _ => panic!(),
+                    };
+
+                    insert_message(
+                        &on_disk_tx,
+                        inventory::Message {
+                            payload: message.clone(),
+                            nonce,
+                            expiration_time: now + 2,
+                        },
+                    )
+                    .await;
+
+                    // No event should be emitted.
+
+                    {
+                        let (drained1_tx, drained1_rx) = channel(1);
+                        let (stored_message_tx, stored_message_rx) = channel(1);
+                        let (drained2_tx, drained2_rx) = channel(1);
+                        request_state_dump(
+                            &command_tx,
+                            drained1_tx,
+                            stored_message_tx,
+                            drained2_tx,
+                        )
+                        .await;
+
+                        while let Some(_) = drained1_rx.recv().await {}
+
+                        if let Some(message) = stored_message_rx.recv().await {
+                            assert_message_content(message.message);
+                            assert_eq!(message.expiration_time.unwrap(), now + 3);
+                            assert_eq!(message.inbox_id, inbox_id);
+                            if let MessageType::Unsaved = message.message_type {
+                            } else {
+                                panic!();
+                            }
+                        }
+
+                        if let Some(_) = stored_message_rx.recv().await {
+                            panic!();
+                        }
+
+                        while let Some(_) = drained2_rx.recv().await {}
+                    }
+
+                    use std::time::Duration;
+                    task::sleep(Duration::from_secs(4)).await;
+
+                    // Consume expiration event
+                    event_rx.recv().await;
+
+                    {
+                        let (drained1_tx, drained1_rx) = channel(1);
+                        let (stored_message_tx, stored_message_rx) = channel(1);
+                        let (drained2_tx, drained2_rx) = channel(1);
+                        request_state_dump(
+                            &command_tx,
+                            drained1_tx,
+                            stored_message_tx,
+                            drained2_tx,
+                        )
+                        .await;
+
+                        while let Some(_) = drained1_rx.recv().await {}
+
+                        if let Some(_) = stored_message_rx.recv().await {
+                            panic!();
+                        }
+
+                        while let Some(_) = drained2_rx.recv().await {}
+                    }
+
+                    stop(&command_tx).await;
+                })
+                .into(),
+            )
+            .unwrap();
+
+        exec.run();
     }
 }

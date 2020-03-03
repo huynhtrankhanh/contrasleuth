@@ -1,12 +1,13 @@
-use async_std::task;
+#[macro_use]
+extern crate lazy_static;
 use clap::{App, Arg};
-use rusqlite::{params, Connection};
-use std::collections::{BTreeMap, HashMap, HashSet};
-use std::include_str;
+use futures::task::LocalSpawn;
+use rusqlite::Connection;
 use std::net::SocketAddr;
 use std::process::exit;
 mod connect;
 mod derive_state;
+mod init_inventory;
 mod inventory;
 mod log;
 mod message_hash;
@@ -24,9 +25,6 @@ mod message_capnp {
 }
 use async_std::prelude::*;
 use async_std::sync::{channel, RwLock};
-use futures::task::LocalSpawn;
-use inventory::{in_memory, on_disk, populate, purge_expired};
-use std::sync::Arc;
 use stdio_ipc::{format_struct, Message};
 
 fn main() {
@@ -112,106 +110,19 @@ fn main() {
     let (on_disk_tx, on_disk_rx) = channel(1);
     let (mutate_tx, mutate_rx) = channel(1);
 
+    // TODO: Replace this dumb channel drainer with a sensible IPC API.
+    async_std::task::spawn(async move { while let Some(_) = mutate_rx.recv().await {} });
+
     std::thread::spawn(move || {
         let connection = match Connection::open(database_path) {
-            Ok(connection) => Arc::new(connection),
+            Ok(connection) => connection,
             Err(_) => {
                 log::fatal("Unable to open database file");
                 exit(1);
             }
         };
-        connection
-            .execute(
-                include_str!("../sql/A. Schema/Initial schema for backend.sql"),
-                params![],
-            )
-            .unwrap();
-        let mut exec = futures::executor::LocalPool::new();
-        let spawner = exec.spawner();
-        let map_counter_to_hash = Arc::new(RwLock::new(BTreeMap::<u128, Arc<Vec<u8>>>::new()));
-        let map_expiration_time_to_hashes = Arc::new(RwLock::new(BTreeMap::<
-            i64,
-            RwLock<HashSet<Arc<Vec<u8>>>>,
-        >::new()));
-        let map_hash_to_counter = Arc::new(RwLock::new(HashMap::<Arc<Vec<u8>>, u128>::new()));
-        let map_hash_to_expiration_time =
-            Arc::new(RwLock::new(HashMap::<Arc<Vec<u8>>, i64>::new()));
 
-        let initial_counter = task::block_on(populate(
-            &map_counter_to_hash,
-            &map_expiration_time_to_hashes,
-            &map_hash_to_counter,
-            &map_hash_to_expiration_time,
-            &connection,
-            &mutate_tx,
-        ));
-
-        {
-            let map_counter_to_hash = map_counter_to_hash.clone();
-            let map_hash_to_counter = map_hash_to_counter.clone();
-            let map_hash_to_expiration_time = map_hash_to_expiration_time.clone();
-            task::spawn(async move {
-                in_memory(
-                    in_memory_rx,
-                    &map_counter_to_hash,
-                    &map_hash_to_counter,
-                    &map_hash_to_expiration_time,
-                )
-                .await;
-            });
-        }
-
-        {
-            let map_counter_to_hash = map_counter_to_hash.clone();
-            let map_expiration_time_to_hashes = map_expiration_time_to_hashes.clone();
-            let map_hash_to_counter = map_hash_to_counter.clone();
-            let map_hash_to_expiration_time = map_hash_to_expiration_time.clone();
-            let connection = connection.clone();
-            {
-                let mutate_tx = mutate_tx.clone();
-
-                spawner
-                    .spawn_local_obj(
-                        Box::new(async move {
-                            loop {
-                                use std::time::Duration;
-                                purge_expired(
-                                    &map_counter_to_hash,
-                                    &map_expiration_time_to_hashes,
-                                    &map_hash_to_counter,
-                                    &map_hash_to_expiration_time,
-                                    &connection,
-                                    &mutate_tx,
-                                )
-                                .await;
-                                task::sleep(Duration::from_secs(1)).await;
-                            }
-                        })
-                        .into(),
-                    )
-                    .unwrap();
-            }
-        }
-        spawner
-            .spawn_local_obj(
-                Box::new(async move {
-                    on_disk(
-                        on_disk_rx,
-                        initial_counter,
-                        &map_counter_to_hash,
-                        &map_expiration_time_to_hashes,
-                        &map_hash_to_counter,
-                        &map_hash_to_expiration_time,
-                        &connection,
-                        &mutate_tx,
-                    )
-                    .await;
-                })
-                .into(),
-            )
-            .unwrap();
-
-        exec.run();
+        init_inventory::init_inventory(connection, mutate_tx, in_memory_rx, on_disk_rx);
     });
 
     let spawner_clone = spawner.clone();

@@ -1,4 +1,4 @@
-INSERT INTO
+DELETE FROM
     message_content_derivation_table
-VALUES
-    (?, ?, ?)
+WHERE
+    inbox_id = ?

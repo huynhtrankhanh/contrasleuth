@@ -15,7 +15,7 @@ pub struct Message {
 }
 
 pub enum InMemory {
-    GetAllAfterCounter(u128, Sender<Arc<Vec<u8>>>, Sender<u128>),
+    GetOneAfterCounter(u128, Sender<(Arc<Vec<u8>>, u128)>),
     MessageExists(Arc<Vec<u8>>, Sender<bool>),
     GetExpirationTime(Arc<Vec<u8>>, Sender<Option<i64>>),
 }
@@ -30,15 +30,13 @@ pub enum Mutation {
     Purge(Arc<Vec<u8>>),
 }
 
-pub async fn get_all_after_counter(
+pub async fn get_one_after_counter(
     tx: &Sender<InMemory>,
     counter: u128,
-) -> (Receiver<Arc<Vec<u8>>>, Receiver<u128>) {
+) -> Option<(Arc<Vec<u8>>, u128)> {
     let (tx1, rx1) = channel(1);
-    let (tx2, rx2) = channel(1);
-    tx.send(InMemory::GetAllAfterCounter(counter, tx1, tx2))
-        .await;
-    (rx1, rx2)
+    tx.send(InMemory::GetOneAfterCounter(counter, tx1)).await;
+    rx1.recv().await
 }
 
 pub async fn message_exists(tx: &Sender<InMemory>, hash: Arc<Vec<u8>>) -> bool {
@@ -73,9 +71,8 @@ pub async fn in_memory(
 ) {
     while let Some(command) = rx.recv().await {
         match command {
-            InMemory::GetAllAfterCounter(counter, tx, final_counter_tx) => {
+            InMemory::GetOneAfterCounter(counter, tx) => {
                 let acquired = map_counter_to_hash.read().await;
-                let mut final_counter = counter;
                 let now = Utc::now().timestamp();
                 use std::ops::Bound::{Excluded, Unbounded};
                 for (&counter, hash) in acquired.range((Excluded(counter), Unbounded)) {
@@ -87,10 +84,9 @@ pub async fn in_memory(
                             }
                         }
                     }
-                    tx.send(hash.clone()).await;
-                    final_counter = counter;
+                    tx.send((hash.clone(), counter)).await;
+                    break;
                 }
-                final_counter_tx.send(final_counter).await;
             }
             InMemory::MessageExists(hash, tx) => {
                 let now = Utc::now().timestamp();
@@ -193,26 +189,37 @@ pub async fn purge_expired(
     mutate_tx: &Sender<Mutation>,
 ) {
     let now = Utc::now().timestamp();
-    for (_, hashes) in map_expiration_time_to_hashes.read().await.range(..=now) {
-        for hash in hashes.read().await.iter() {
-            let hash = hash.clone();
-            match map_hash_to_counter.read().await.get(&hash) {
-                None => continue,
-                Some(counter) => {
-                    map_counter_to_hash.write().await.remove(&counter);
-                    hashes.write().await.remove(&hash);
-                    map_hash_to_expiration_time.write().await.remove(&hash);
-                    map_hash_to_counter.write().await.remove(&hash);
-                    connection
-                        .execute(
-                            include_str!("../sql/B. RPC/Delete message.sql"),
-                            params![&hash as &Vec<u8>],
-                        )
-                        .unwrap();
-                    mutate_tx.send(Mutation::Purge(hash)).await;
+    let mut map_counter_to_hash = map_counter_to_hash.write().await;
+    let mut map_expiration_time_to_hashes = map_expiration_time_to_hashes.write().await;
+    let mut map_hash_to_counter = map_hash_to_counter.write().await;
+    let mut map_hash_to_expiration_time = map_hash_to_expiration_time.write().await;
+    let mut expiration_times = Vec::new();
+    for (time, hashes) in map_expiration_time_to_hashes.range(..=now) {
+        {
+            let hashes = hashes.read().await;
+            for hash in hashes.iter() {
+                let hash = hash.clone();
+                match map_hash_to_counter.get(&hash) {
+                    None => continue,
+                    Some(counter) => {
+                        map_counter_to_hash.remove(&counter);
+                        map_hash_to_expiration_time.remove(&hash);
+                        map_hash_to_counter.remove(&hash);
+                        connection
+                            .execute(
+                                include_str!("../sql/B. RPC/Delete message.sql"),
+                                params![&hash as &Vec<u8>],
+                            )
+                            .unwrap();
+                        mutate_tx.send(Mutation::Purge(hash)).await;
+                    }
                 }
             }
         }
+        expiration_times.push(*time);
+    }
+    for expiration_time in expiration_times {
+        map_expiration_time_to_hashes.remove(&expiration_time);
     }
 }
 

@@ -22,7 +22,7 @@ struct Message @0xd7170526d566b4fb {
     }
     content @5 :Text;
     attachments @6 :List(Attachment);
-    # 24 bytes of random data. Used to differentiate
+    # 10 bytes of random data. Used to differentiate
     # messages when all other fields are identical.
     nonce @7 :Data;
 }

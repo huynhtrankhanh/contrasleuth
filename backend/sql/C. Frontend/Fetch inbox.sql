@@ -8,3 +8,5 @@ SELECT
     autosave_preference
 FROM
     inboxes
+WHERE
+    global_id = ?

@@ -1,5 +1,5 @@
 use crate::connect::{connect, reverse_connect};
-use crate::inventory::{get_all_after_counter, get_message, insert_message, InMemory, OnDisk};
+use crate::inventory::{get_message, get_one_after_counter, insert_message, InMemory, OnDisk};
 use crate::log;
 use crate::mpmc_manual_reset_event::MPMCManualResetEvent;
 use async_std::io;
@@ -89,11 +89,12 @@ pub async fn communicate(
                 Box::new(async move {
                     let handle = reconciliation_intent.write().await.get_handle();
                     loop {
-                        let (channel, final_counter) =
-                            get_all_after_counter(&in_memory_tx, 0).await;
-                        drop(final_counter);
                         let mut hashes = Vec::new();
-                        while let Some(hash) = channel.recv().await {
+                        let mut counter = 0u128;
+                        while let Some((hash, new_counter)) =
+                            get_one_after_counter(&in_memory_tx, counter).await
+                        {
+                            counter = new_counter;
                             hashes.push((&hash as &Vec<u8>).to_owned());
                         }
                         log::ipc(format_struct(&Message::Inventory(hashes)));
