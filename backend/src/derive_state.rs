@@ -1526,8 +1526,6 @@ mod tests {
                         while let Some(_) = drained2_rx.recv().await {}
                     };
 
-                    // TODO: Turn Autosave On -> Message -> Wait for Expiration -> Unsave Message -> Assert State
-
                     let now = Utc::now().timestamp();
 
                     set_autosave_preference(
@@ -1579,8 +1577,6 @@ mod tests {
                         _ => panic!(),
                     }
 
-                    // TODO: Turn Autosave On -> Message -> Wait for Expiration -> Hide Message -> Assert State
-
                     let now = Utc::now().timestamp();
 
                     insert_message(
@@ -1625,7 +1621,6 @@ mod tests {
                         _ => panic!(),
                     }
 
-                    // TODO: Messages -> Delete Inbox -> Assert State
                     let now = Utc::now().timestamp();
 
                     insert_message(
@@ -1666,7 +1661,6 @@ mod tests {
                     }
                     while let Some(_) = drained1_rx.recv().await {}
 
-                    // TODO: Contacts -> Alter Key Pair 1 -> Assert Events -> Assert State
                     let publichalf1 = PublicHalf {
                         public_encryption_key: box_::gen_keypair().0.as_ref().to_vec(),
                         public_signing_key: sign::gen_keypair().0.as_ref().to_vec(),
@@ -1688,7 +1682,6 @@ mod tests {
 
                     let id = set_contact_public_half(&command_tx, id, publichalf2).await;
 
-                    // TODO: Contacts -> Rename Contact -> Assert Events -> Assert State
                     set_contact_label(&command_tx, id.clone(), "New Label".to_string()).await;
                     let (drained1_tx, drained1_rx) = channel(1);
                     let (drained2_tx, drained2_rx) = channel(1);
@@ -1700,7 +1693,6 @@ mod tests {
                     assert_eq!(contact.global_id, id);
                     assert_eq!(contact.contact.label, "New Label".to_string());
 
-                    // TODO: Contacts -> Delete Contact
                     delete_contact(&command_tx, id).await;
                     let (drained1_tx, drained1_rx) = channel(1);
                     let (drained2_tx, drained2_rx) = channel(1);
@@ -1712,7 +1704,6 @@ mod tests {
                         panic!();
                     }
 
-                    // TODO: Multiple Public Half Entries -> Assert Events
                     let inbox_id = new_inbox(&command_tx, "Hello, World!".to_string()).await;
                     let entry = get_public_half_entry(&command_tx, inbox_id.clone()).await;
                     let now = Utc::now().timestamp();
