@@ -91,6 +91,10 @@ pub enum Command {
     DeleteInbox {
         inbox_id: Vec<u8>,
     },
+    GetPublicHalfEntry {
+        inbox_id: Vec<u8>,
+        blob_tx: Sender<Vec<u8>>,
+    },
     EncodeMessage {
         in_reply_to: Option<Vec<u8>>,
         disclosed_recipients: Vec<PublicHalf>,
@@ -159,12 +163,19 @@ pub async fn set_autosave_preference(
     .await;
 }
 
-pub async fn set_inbox_label(tx: &Sender<Command>, label: String, inbox_id: Vec<u8>) {
+pub async fn set_inbox_label(tx: &Sender<Command>, inbox_id: Vec<u8>, label: String) {
     tx.send(Command::SetInboxLabel { label, inbox_id }).await;
 }
 
 pub async fn delete_inbox(tx: &Sender<Command>, inbox_id: Vec<u8>) {
     tx.send(Command::DeleteInbox { inbox_id }).await;
+}
+
+pub async fn get_public_half_entry(tx: &Sender<Command>, inbox_id: Vec<u8>) -> Vec<u8> {
+    let (blob_tx, blob_rx) = channel(1);
+    tx.send(Command::GetPublicHalfEntry { inbox_id, blob_tx })
+        .await;
+    blob_rx.recv().await.unwrap()
 }
 
 pub async fn encode_message(
@@ -225,6 +236,25 @@ pub async fn new_contact(tx: &Sender<Command>, contact: Contact) -> Vec<u8> {
 pub async fn set_contact_label(tx: &Sender<Command>, contact_id: Vec<u8>, label: String) {
     tx.send(Command::SetContactLabel { contact_id, label })
         .await;
+}
+
+pub async fn set_contact_public_half(
+    tx: &Sender<Command>,
+    contact_id: Vec<u8>,
+    public_half: PublicHalf,
+) -> Vec<u8> {
+    let (id_tx, id_rx) = channel(1);
+    tx.send(Command::SetContactPublicHalf {
+        contact_id,
+        public_half,
+        id_tx,
+    })
+    .await;
+    id_rx.recv().await.unwrap()
+}
+
+pub async fn delete_contact(tx: &Sender<Command>, contact_id: Vec<u8>) {
+    tx.send(Command::DeleteContact { contact_id }).await;
 }
 
 pub async fn lookup_public_half(
@@ -320,7 +350,7 @@ pub enum Event {
 }
 
 lazy_static! {
-    static ref calculate_public_half_id_domain: Vec<u8> = {
+    static ref CALCULATE_PUBLIC_HALF_ID_DOMAIN: Vec<u8> = {
         let domain = blake3::hash(b"PARLANCE CALCULATE PUBLIC HALF ID");
         domain.as_bytes().to_vec()
     };
@@ -330,7 +360,7 @@ fn calculate_public_half_id(public_encryption_key: &[u8], public_signing_key: &[
     let mut hasher = blake3::Hasher::new();
     hasher.update(&public_encryption_key);
     hasher.update(&public_signing_key);
-    hasher.update(&calculate_public_half_id_domain);
+    hasher.update(&CALCULATE_PUBLIC_HALF_ID_DOMAIN);
     hasher.finalize().as_bytes().to_vec()
 }
 
@@ -890,6 +920,42 @@ pub async fn derive(
                         )
                         .unwrap();
                 }
+                Command::GetPublicHalfEntry { inbox_id, blob_tx } => {
+                    let mut statement = connection
+                        .prepare(include_str!("../sql/C. Frontend/Fetch inbox.sql"))
+                        .unwrap();
+                    let mut rows = statement.query(params![inbox_id]).unwrap();
+                    let row = rows.next().unwrap().unwrap();
+                    let public_encryption_key: Vec<u8> = row.get(2).unwrap();
+                    let public_signing_key: Vec<u8> = row.get(4).unwrap();
+                    let mut builder = capnp::message::Builder::new_default();
+                    let mut serialized =
+                        builder.init_root::<crate::message_capnp::public_key::Builder>();
+                    serialized.set_public_encryption_key(&public_encryption_key);
+                    serialized.set_public_signing_key(&public_signing_key);
+
+                    let plaintext = {
+                        let mut buffer = Vec::new();
+                        capnp::serialize::write_message(&mut buffer, &builder).unwrap();
+                        buffer
+                    };
+
+                    let mut blob = Vec::new();
+
+                    let nonce = randombytes(secretbox::NONCEBYTES);
+
+                    blob.extend_from_slice(&nonce);
+
+                    let encrypted = secretbox::seal(
+                        &plaintext,
+                        &secretbox::Nonce::from_slice(&nonce).unwrap(),
+                        &derive_public_half_encryption_key(&inbox_id[..10]),
+                    );
+
+                    blob.extend_from_slice(&encrypted);
+
+                    blob_tx.send(blob).await;
+                }
                 Command::EncodeMessage {
                     in_reply_to,
                     disclosed_recipients,
@@ -1043,7 +1109,7 @@ pub async fn derive(
                 Command::SetContactLabel { contact_id, label } => {
                     connection
                         .execute(
-                            include_str!("../sql/C. Frontend/Update inbox label.sql"),
+                            include_str!("../sql/C. Frontend/Update contact label.sql"),
                             params![label, contact_id],
                         )
                         .unwrap();
@@ -1434,12 +1500,12 @@ mod tests {
                     }
 
                     use std::time::Duration;
-                    task::sleep(Duration::from_secs(4)).await;
+                    task::sleep(Duration::from_millis(3100)).await;
 
                     // Consume expiration event
                     event_rx.recv().await;
 
-                    {
+                    let assert_no_messages = || async {
                         let (drained1_tx, drained1_rx) = channel(1);
                         let (stored_message_tx, stored_message_rx) = channel(1);
                         let (drained2_tx, drained2_rx) = channel(1);
@@ -1458,7 +1524,255 @@ mod tests {
                         }
 
                         while let Some(_) = drained2_rx.recv().await {}
+                    };
+
+                    // TODO: Turn Autosave On -> Message -> Wait for Expiration -> Unsave Message -> Assert State
+
+                    let now = Utc::now().timestamp();
+
+                    set_autosave_preference(
+                        &command_tx,
+                        inbox_id.clone(),
+                        AutosavePreference::Autosave,
+                    )
+                    .await;
+
+                    insert_message(
+                        &on_disk_tx,
+                        inventory::Message {
+                            payload: message.clone(),
+                            nonce,
+                            expiration_time: now + 1,
+                        },
+                    )
+                    .await;
+
+                    match event_rx.recv().await.unwrap() {
+                        Event::Message {
+                            message: _message,
+                            message_type,
+                            global_id,
+                            inbox_id,
+                            expiration_time: _expiration_time,
+                        } => {
+                            match message_type {
+                                MessageType::Saved => {}
+                                _ => panic!(),
+                            }
+
+                            task::sleep(Duration::from_millis(1100)).await;
+                            // The message has expired.
+
+                            unsave_message(&command_tx, global_id.clone(), inbox_id.clone()).await;
+                            match event_rx.recv().await.unwrap() {
+                                Event::MessageExpired {
+                                    global_id: global_id1,
+                                    inbox_id: inbox_id1,
+                                } => {
+                                    assert_eq!(global_id, global_id1);
+                                    assert_eq!(inbox_id, inbox_id1);
+                                    assert_no_messages().await;
+                                }
+                                _ => panic!(),
+                            }
+                        }
+                        _ => panic!(),
                     }
+
+                    // TODO: Turn Autosave On -> Message -> Wait for Expiration -> Hide Message -> Assert State
+
+                    let now = Utc::now().timestamp();
+
+                    insert_message(
+                        &on_disk_tx,
+                        inventory::Message {
+                            payload: message.clone(),
+                            nonce,
+                            expiration_time: now + 1,
+                        },
+                    )
+                    .await;
+
+                    match event_rx.recv().await.unwrap() {
+                        Event::Message {
+                            message: _message,
+                            message_type,
+                            global_id,
+                            inbox_id,
+                            expiration_time: _expiration_time,
+                        } => {
+                            match message_type {
+                                MessageType::Saved => {}
+                                _ => panic!(),
+                            }
+
+                            task::sleep(Duration::from_millis(1100)).await;
+                            // The message has expired.
+
+                            hide_message(&command_tx, global_id.clone(), inbox_id.clone()).await;
+                            match event_rx.recv().await.unwrap() {
+                                Event::MessageExpired {
+                                    global_id: global_id1,
+                                    inbox_id: inbox_id1,
+                                } => {
+                                    assert_eq!(global_id, global_id1);
+                                    assert_eq!(inbox_id, inbox_id1);
+                                    assert_no_messages().await;
+                                }
+                                _ => panic!(),
+                            }
+                        }
+                        _ => panic!(),
+                    }
+
+                    // TODO: Messages -> Delete Inbox -> Assert State
+                    let now = Utc::now().timestamp();
+
+                    insert_message(
+                        &on_disk_tx,
+                        inventory::Message {
+                            payload: message.clone(),
+                            nonce,
+                            expiration_time: now + 3600,
+                        },
+                    )
+                    .await;
+
+                    // Consume message event
+                    event_rx.recv().await.unwrap();
+
+                    set_inbox_label(&command_tx, inbox_id.clone(), "Lorem Ipsum".to_string()).await;
+                    let (inbox_tx, inbox_rx) = channel(1);
+                    let (drained1_tx, drained1_rx) = channel(1);
+                    let (drained2_tx, drained2_rx) = channel(1);
+                    request_state_dump(&command_tx, inbox_tx, drained1_tx, drained2_tx).await;
+                    assert_eq!(
+                        inbox_rx.recv().await.unwrap().label,
+                        "Lorem Ipsum".to_string()
+                    );
+                    while let Some(_) = drained1_rx.recv().await {}
+                    while let Some(_) = drained2_rx.recv().await {}
+
+                    delete_inbox(&command_tx, inbox_id.clone()).await;
+                    let (inbox_tx, inbox_rx) = channel(1);
+                    let (stored_message_tx, stored_message_rx) = channel(1);
+                    let (drained1_tx, drained1_rx) = channel(1);
+                    request_state_dump(&command_tx, inbox_tx, stored_message_tx, drained1_tx).await;
+                    if let Some(_) = inbox_rx.recv().await {
+                        panic!();
+                    }
+                    if let Some(_) = stored_message_rx.recv().await {
+                        panic!();
+                    }
+                    while let Some(_) = drained1_rx.recv().await {}
+
+                    // TODO: Contacts -> Alter Key Pair 1 -> Assert Events -> Assert State
+                    let publichalf1 = PublicHalf {
+                        public_encryption_key: box_::gen_keypair().0.as_ref().to_vec(),
+                        public_signing_key: sign::gen_keypair().0.as_ref().to_vec(),
+                    };
+
+                    let publichalf2 = PublicHalf {
+                        public_encryption_key: box_::gen_keypair().0.as_ref().to_vec(),
+                        public_signing_key: sign::gen_keypair().0.as_ref().to_vec(),
+                    };
+
+                    let id = new_contact(
+                        &command_tx,
+                        Contact {
+                            label: "Hello, World!".to_string(),
+                            public_half: publichalf1,
+                        },
+                    )
+                    .await;
+
+                    let id = set_contact_public_half(&command_tx, id, publichalf2).await;
+
+                    // TODO: Contacts -> Rename Contact -> Assert Events -> Assert State
+                    set_contact_label(&command_tx, id.clone(), "New Label".to_string()).await;
+                    let (drained1_tx, drained1_rx) = channel(1);
+                    let (drained2_tx, drained2_rx) = channel(1);
+                    let (contact_tx, contact_rx) = channel(1);
+                    request_state_dump(&command_tx, drained1_tx, drained2_tx, contact_tx).await;
+                    while let Some(_) = drained1_rx.recv().await {}
+                    while let Some(_) = drained2_rx.recv().await {}
+                    let contact = contact_rx.recv().await.unwrap();
+                    assert_eq!(contact.global_id, id);
+                    assert_eq!(contact.contact.label, "New Label".to_string());
+
+                    // TODO: Contacts -> Delete Contact
+                    delete_contact(&command_tx, id).await;
+                    let (drained1_tx, drained1_rx) = channel(1);
+                    let (drained2_tx, drained2_rx) = channel(1);
+                    let (contact_tx, contact_rx) = channel(1);
+                    request_state_dump(&command_tx, drained1_tx, drained2_tx, contact_tx).await;
+                    while let Some(_) = drained1_rx.recv().await {}
+                    while let Some(_) = drained2_rx.recv().await {}
+                    if let Some(_) = contact_rx.recv().await {
+                        panic!();
+                    }
+
+                    // TODO: Multiple Public Half Entries -> Assert Events
+                    let inbox_id = new_inbox(&command_tx, "Hello, World!".to_string()).await;
+                    let entry = get_public_half_entry(&command_tx, inbox_id.clone()).await;
+                    let now = Utc::now().timestamp();
+
+                    insert_message(
+                        &on_disk_tx,
+                        inventory::Message {
+                            payload: entry.clone(),
+                            nonce,
+                            expiration_time: now + 1,
+                        },
+                    )
+                    .await;
+
+                    match event_rx.recv().await.unwrap() {
+                        Event::Inbox {
+                            global_id,
+                            expiration_time,
+                        } => {
+                            assert_eq!(global_id, inbox_id);
+                            assert_eq!(expiration_time, now + 1);
+                        }
+                        _ => panic!(),
+                    }
+
+                    insert_message(
+                        &on_disk_tx,
+                        inventory::Message {
+                            payload: entry.clone(),
+                            nonce,
+                            expiration_time: now + 3,
+                        },
+                    )
+                    .await;
+
+                    match event_rx.recv().await.unwrap() {
+                        Event::Inbox {
+                            global_id,
+                            expiration_time,
+                        } => {
+                            assert_eq!(global_id, inbox_id);
+                            assert_eq!(expiration_time, now + 3);
+                        }
+                        _ => panic!(),
+                    }
+
+                    let public_half = {
+                        let (public_half_tx, public_half_rx) = channel(1);
+                        lookup_public_half(&command_tx, inbox_id[..10].to_vec(), public_half_tx)
+                            .await;
+                        public_half_rx.recv().await.unwrap()
+                    };
+
+                    assert_eq!(
+                        calculate_public_half_id(
+                            &public_half.public_encryption_key,
+                            &public_half.public_signing_key
+                        ),
+                        inbox_id
+                    );
 
                     stop(&command_tx).await;
                 })
