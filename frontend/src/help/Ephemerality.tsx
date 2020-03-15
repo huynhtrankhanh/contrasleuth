@@ -29,22 +29,11 @@ const Page = () => (
       If they don't store your ID in their contact list, when your inbox
       expires, they won't be able to contact you until you renew your inbox.
     </Text>
-    <Heading>An exception to inbox ephemerality</Heading>
+    <Heading>Message ephemerality</Heading>
     <Text>
-      Your public keys are also attached to your messages in addition to being
-      stored in an entry. If your inbox expires and and they still have some of
-      your messages,{" "}
-      <Note>
-        even though they haven't stored your inbox ID in their contact list,
-      </Note>{" "}
-      they will still be able to contact you.
-    </Text>
-    <Heading>Message and broadcast ephemerality</Heading>
-    <Text>
-      Messages and broadcasts are stored in the network for the duration you
-      specify when you make them. People who receive your messages and
-      broadcasts can save them to their device to be able to access them after
-      they expire.
+      Messages are stored in the network for the duration you specify when you
+      make them. People who receive your messagescan save them to their device
+      to be able to access them after they expire.
     </Text>
     <Heading>Automatic message saving</Heading>
     <Text>

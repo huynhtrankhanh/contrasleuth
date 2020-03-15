@@ -5,6 +5,7 @@ import { IonReactRouter } from "@ionic/react-router";
 import styled from "styled-components";
 import Home from "./pages/Home";
 import Inbox from "./pages/Inbox";
+import Ephemerality from "./help/Ephemerality";
 import "./index.css";
 
 const AppName = styled.div`
@@ -17,6 +18,7 @@ const AppName = styled.div`
 const Outer = styled.div`
   padding-left: 10vw;
   padding-right: 10vw;
+  padding-bottom: 32px;
 `;
 
 const App: React.FC = () => (
@@ -27,6 +29,7 @@ const App: React.FC = () => (
         <Route exact path="/home" component={Home} />
         <Route exact path="/inbox" component={Inbox} />
         <Route exact path="/" render={() => <Redirect to="/home" />} />
+        <Route exact path="/help/ephemerality" component={Ephemerality} />
       </Outer>
     </IonReactRouter>
   </IonApp>

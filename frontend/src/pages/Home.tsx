@@ -29,21 +29,6 @@ const Home = () => (
           </StaticUUID>
         </HorizontalAlign>
       </Text>
-      <Text>
-        <HorizontalAlign>
-          <StaticUUID>
-            {uuid => (
-              <>
-                <Label htmlFor={uuid}>ID:</Label>{" "}
-                <TextField id={uuid} value="f23ieifabwsdtu7x" readOnly />
-              </>
-            )}
-          </StaticUUID>
-        </HorizontalAlign>
-      </Text>
-      <Text>
-        <Note>Inbox ID is randomly assigned and can't be changed.</Note>
-      </Text>
     </SectionWithEmphasis>
   </>
 );

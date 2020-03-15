@@ -110,7 +110,6 @@ fn main() {
     let (on_disk_tx, on_disk_rx) = channel(1);
     let (mutate_tx, mutate_rx) = channel(1);
 
-    // TODO: Replace this dumb channel drainage with a sensible IPC API.
     async_std::task::spawn(async move { while let Some(_) = mutate_rx.recv().await {} });
 
     std::thread::spawn(move || {
