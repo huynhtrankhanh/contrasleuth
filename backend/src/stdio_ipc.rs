@@ -1,7 +1,9 @@
 use crate::connect::{connect, reverse_connect};
+use crate::derive_state::Command;
 use crate::inventory::{get_message, get_one_after_counter, insert_message, InMemory, OnDisk};
 use crate::log;
 use crate::mpmc_manual_reset_event::MPMCManualResetEvent;
+use crate::state_derive_ipc::attempt_parse;
 use async_std::io;
 use async_std::sync::{RwLock, Sender};
 use futures::executor::LocalSpawner;
@@ -77,6 +79,7 @@ pub async fn communicate(
     reconciliation_intent: std::rc::Rc<RwLock<MPMCManualResetEvent>>,
     in_memory_tx: Sender<InMemory>,
     on_disk_tx: Sender<OnDisk>,
+    command_tx: Option<Sender<Command>>,
     spawner: LocalSpawner,
 ) {
     let atomic_cancel_flags: Rc<RwLock<HashMap<String, Arc<AtomicBool>>>> =
@@ -111,12 +114,17 @@ pub async fn communicate(
         let mut line = String::new();
         match io::stdin().read_line(&mut line).await {
             Ok(_) => {
+                if let Some(command_tx) = &command_tx {
+                    if attempt_parse(&command_tx, &line).await {
+                        continue;
+                    }
+                }
                 let operation_result =
                     serde_json::from_slice::<Operation>(&match base64::decode(&line.trim()) {
                         Ok(value) => value,
                         Err(_) => {
                             log::fatal(format!(
-                                "Received RPC command is not valid base64. Offending command: {}",
+                                "Received RPC command can't be parsed. Offending command: {}",
                                 line.trim()
                             ));
                             exit(1);

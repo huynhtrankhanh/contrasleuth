@@ -20,8 +20,8 @@ pub enum AutosavePreference {
 
 #[derive(Debug)]
 pub struct PublicHalf {
-    public_encryption_key: Vec<u8>,
-    public_signing_key: Vec<u8>,
+    pub public_encryption_key: Vec<u8>,
+    pub public_signing_key: Vec<u8>,
 }
 
 #[derive(Debug)]
@@ -32,47 +32,47 @@ pub enum RichTextFormat {
 
 #[derive(Debug)]
 pub struct Attachment {
-    mime_type: String,
-    blob: Vec<u8>,
+    pub mime_type: String,
+    pub blob: Vec<u8>,
 }
 
 #[derive(Debug)]
 pub struct Message {
-    sender: PublicHalf,
-    in_reply_to: Option<Vec<u8>>,
-    disclosed_recipients: Vec<PublicHalf>,
-    rich_text_format: RichTextFormat,
-    content: String,
-    attachments: Vec<Attachment>,
+    pub sender: PublicHalf,
+    pub in_reply_to: Option<Vec<u8>>,
+    pub disclosed_recipients: Vec<PublicHalf>,
+    pub rich_text_format: RichTextFormat,
+    pub content: String,
+    pub attachments: Vec<Attachment>,
 }
 
 #[derive(Debug)]
 pub struct Contact {
-    label: String,
-    public_half: PublicHalf,
+    pub label: String,
+    pub public_half: PublicHalf,
 }
 
 #[derive(Debug)]
 pub struct StoredContact {
-    contact: Contact,
-    global_id: Vec<u8>,
+    pub contact: Contact,
+    pub global_id: Vec<u8>,
 }
 
 #[derive(Debug)]
 pub struct StoredMessage {
-    message: Message,
-    expiration_time: Option<i64>,
-    inbox_id: Vec<u8>,
-    global_id: Vec<u8>,
-    message_type: MessageType,
+    pub message: Message,
+    pub expiration_time: Option<i64>,
+    pub inbox_id: Vec<u8>,
+    pub global_id: Vec<u8>,
+    pub message_type: MessageType,
 }
 
 #[derive(Debug)]
 pub struct Inbox {
-    global_id: Vec<u8>,
-    label: String,
-    public_half: PublicHalf,
-    autosave_preference: AutosavePreference,
+    pub global_id: Vec<u8>,
+    pub label: String,
+    pub public_half: PublicHalf,
+    pub autosave_preference: AutosavePreference,
 }
 
 pub enum Command {

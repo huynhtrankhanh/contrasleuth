@@ -25,3 +25,7 @@ pub fn fatal<T: Display>(message: T) {
 pub fn ipc<T: Display>(message: T) {
     println!("{} [IPC] {}", now(), message);
 }
+
+pub fn frontend<T: Display>(message: T) {
+    println!("{} [FRONTEND] {}", now(), message);
+}

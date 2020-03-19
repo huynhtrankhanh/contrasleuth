@@ -3,5 +3,5 @@ UPDATE
 SET
     message_type = ?
 WHERE
-    message_id = ?
+    global_id = ?
     AND inbox_id = ?

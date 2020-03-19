@@ -22,7 +22,7 @@ test.before(
       buildProcess.stderr.on("data", data => process.stderr.write(data));
       buildProcess.on("close", (code, signal) => {
         if (code === 0) {
-          t.log("build was sucessful");
+          t.log("build was successful");
           resolve();
         } else {
           t.log(

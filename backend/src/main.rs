@@ -16,6 +16,7 @@ mod private_box;
 mod proof_of_work;
 mod reconcile_client;
 mod reconcile_server;
+mod state_derive_ipc;
 mod stdio_ipc;
 mod reconcile_capnp {
     include!(concat!(env!("OUT_DIR"), "/capnp/reconcile_capnp.rs"));
@@ -25,6 +26,8 @@ mod message_capnp {
 }
 use async_std::prelude::*;
 use async_std::sync::{channel, RwLock};
+use derive_state::derive;
+use state_derive_ipc::state_derive_ipc;
 use stdio_ipc::{format_struct, Message};
 
 fn main() {
@@ -40,9 +43,18 @@ fn main() {
                 .short("f")
                 .long("database")
                 .value_name("FILE")
-                .help("Sets the SQLite database file")
+                .help("Sets the backend SQLite database file")
                 .takes_value(true)
                 .required(true),
+        )
+        .arg(
+            Arg::with_name("frontend database")
+                .short("g")
+                .long("frontend-database")
+                .value_name("FILE")
+                .help("Sets the frontend SQLite database file")
+                .takes_value(true)
+                .required(false),
         )
         .arg(
             Arg::with_name("address")
@@ -57,13 +69,19 @@ fn main() {
             Arg::with_name("reverse client address")
                 .short("r")
                 .long("reverse-address")
-                .value_name("REVERSE_ADDRESS")
+                .value_name("ADDRESS")
                 .help("Sets the reverse reconciliation client address")
                 .takes_value(true),
         )
         .get_matches();
 
     let database_path = matches.value_of("database").unwrap().to_owned();
+
+    let frontend_database_path = match matches.value_of("frontend database") {
+        Some(value) => Some(value.to_owned()),
+        None => None,
+    };
+
     let address = matches.value_of("address").unwrap().to_owned();
 
     let parsed_address = match address.parse::<SocketAddr>() {
@@ -110,7 +128,55 @@ fn main() {
     let (on_disk_tx, on_disk_rx) = channel(1);
     let (mutate_tx, mutate_rx) = channel(1);
 
-    async_std::task::spawn(async move { while let Some(_) = mutate_rx.recv().await {} });
+    let command_tx = match frontend_database_path {
+        Some(path) => {
+            let in_memory_tx = in_memory_tx.clone();
+            let on_disk_tx = on_disk_tx.clone();
+
+            let (command_tx, command_rx) = channel(1);
+            let (event_tx, event_rx) = channel(1);
+
+            spawner
+                .spawn_local_obj(
+                    Box::new(async move {
+                        state_derive_ipc(event_rx).await;
+                    })
+                    .into(),
+                )
+                .unwrap();
+
+            std::thread::spawn(move || {
+                let connection = match Connection::open(path) {
+                    Ok(connection) => connection,
+                    Err(_) => {
+                        log::fatal("Unable to open database file");
+                        exit(1);
+                    }
+                };
+
+                async_std::task::block_on(async move {
+                    derive(
+                        in_memory_tx,
+                        on_disk_tx,
+                        mutate_rx,
+                        command_rx,
+                        connection,
+                        event_tx,
+                    )
+                    .await;
+                });
+            });
+            Some(command_tx)
+        }
+        None => {
+            spawner
+                .spawn_local_obj(
+                    Box::new(async move { while let Some(_) = mutate_rx.recv().await {} }).into(),
+                )
+                .unwrap();
+            None
+        }
+    };
 
     std::thread::spawn(move || {
         let connection = match Connection::open(database_path) {
@@ -268,6 +334,7 @@ fn main() {
                     reconciliation_intent,
                     in_memory_tx,
                     on_disk_tx,
+                    command_tx,
                     spawner_clone,
                 )
                 .await;
