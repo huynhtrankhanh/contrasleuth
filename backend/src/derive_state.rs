@@ -1505,25 +1505,27 @@ mod tests {
                     // Consume expiration event
                     event_rx.recv().await;
 
-                    let assert_no_messages = || async {
-                        let (drained1_tx, drained1_rx) = channel(1);
-                        let (stored_message_tx, stored_message_rx) = channel(1);
-                        let (drained2_tx, drained2_rx) = channel(1);
-                        request_state_dump(
-                            &command_tx,
-                            drained1_tx,
-                            stored_message_tx,
-                            drained2_tx,
-                        )
-                        .await;
+                    let assert_no_messages = || {
+                        async {
+                            let (drained1_tx, drained1_rx) = channel(1);
+                            let (stored_message_tx, stored_message_rx) = channel(1);
+                            let (drained2_tx, drained2_rx) = channel(1);
+                            request_state_dump(
+                                &command_tx,
+                                drained1_tx,
+                                stored_message_tx,
+                                drained2_tx,
+                            )
+                            .await;
 
-                        while let Some(_) = drained1_rx.recv().await {}
+                            while let Some(_) = drained1_rx.recv().await {}
 
-                        if let Some(_) = stored_message_rx.recv().await {
-                            panic!();
+                            if let Some(_) = stored_message_rx.recv().await {
+                                panic!();
+                            }
+
+                            while let Some(_) = drained2_rx.recv().await {}
                         }
-
-                        while let Some(_) = drained2_rx.recv().await {}
                     };
 
                     let now = Utc::now().timestamp();
@@ -1557,6 +1559,8 @@ mod tests {
                                 MessageType::Saved => {}
                                 _ => panic!(),
                             }
+                            unsave_message(&command_tx, global_id.clone(), inbox_id.clone()).await;
+                            save_message(&command_tx, global_id.clone(), inbox_id.clone()).await;
 
                             task::sleep(Duration::from_millis(1100)).await;
                             // The message has expired.
