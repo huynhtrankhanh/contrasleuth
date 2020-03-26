@@ -4,8 +4,6 @@ import { IonApp } from "@ionic/react";
 import { IonReactRouter } from "@ionic/react-router";
 import styled from "styled-components";
 import Home from "./pages/Home";
-import Inbox from "./pages/Inbox";
-import Ephemerality from "./help/Ephemerality";
 import "./index.css";
 
 const AppName = styled.div`
@@ -15,22 +13,37 @@ const AppName = styled.div`
   text-align: center;
 `;
 
+const Outermost = styled.div`
+  display: flex;
+  justify-content: center;
+`;
+
 const Outer = styled.div`
-  padding-left: 10vw;
-  padding-right: 10vw;
+  display: flex;
+  align-items: center;
+  flex-direction: column;
+  width: calc(100vw - 20px - 20px);
+  max-width: 600px;
+  min-height: calc(100vh - 32px);
+  @media (min-width: 600px) {
+    border-left: 1px solid rgba(0, 0, 0, 0.2);
+    border-right: 1px solid rgba(0, 0, 0, 0.2);
+  }
+  padding-left: 20px;
+  padding-right: 20px;
   padding-bottom: 32px;
 `;
 
 const App: React.FC = () => (
   <IonApp>
     <IonReactRouter>
-      <Outer>
-        <AppName>Parlance</AppName>
-        <Route exact path="/home" component={Home} />
-        <Route exact path="/inbox" component={Inbox} />
-        <Route exact path="/" render={() => <Redirect to="/home" />} />
-        <Route exact path="/help/ephemerality" component={Ephemerality} />
-      </Outer>
+      <Outermost>
+        <Outer>
+          <AppName>Parlance</AppName>
+          <Route exact path="/home" component={Home} />
+          <Route exact path="/" render={() => <Redirect to="/home" />} />
+        </Outer>
+      </Outermost>
     </IonReactRouter>
   </IonApp>
 );

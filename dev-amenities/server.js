@@ -1,5 +1,6 @@
 const io = require("socket.io")(2020);
 const { spawn } = require("child_process");
+const split2 = require("split2");
 
 const buildProcess = spawn("cd ../backend && cargo build", { shell: true });
 buildProcess.stdout.on("data", data => process.stdout.write(data));
@@ -35,8 +36,8 @@ const proceed = () => {
     });
   });
 
-  stdout.on("data", data => {
-    process.stdout.write(data);
+  stdout.pipe(split2()).on("data", data => {
+    process.stdout.write(data + "\n");
     io.emit("stdout", data);
   });
 

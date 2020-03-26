@@ -1,6 +1,6 @@
 import styled from "styled-components";
 import { Link } from "react-router-dom";
-const Action = styled(Link)`
+const ActionLink = styled(Link)`
   color: inherit;
   -webkit-tap-highlight-color: transparent;
   &:focus {
@@ -8,4 +8,4 @@ const Action = styled(Link)`
   }
 `;
 
-export default Action;
+export default ActionLink;
