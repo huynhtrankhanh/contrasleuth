@@ -6,7 +6,7 @@ import { createStore, applyMiddleware } from "redux";
 import createSagaMiddleware from "redux-saga";
 // import { reducer, saga } from "./store";
 import contract from "./store/contract";
-contract(() => {});
+(window as any).contract = contract(() => {});
 
 // const sagaMiddleware = createSagaMiddleware();
 // const store = createStore(reducer, applyMiddleware(sagaMiddleware));

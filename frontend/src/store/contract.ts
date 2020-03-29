@@ -53,7 +53,8 @@ import {
   ClientListenAddress,
   Backend
 } from "./rpc-schema";
-import { types, getType, Instance, getSnapshot } from "mobx-state-tree";
+import { types, getType, getSnapshot } from "mobx-state-tree";
+type Instance<T> = T extends { Type: any } ? T["Type"] : T;
 
 type Event =
   | {
@@ -281,10 +282,10 @@ const contract = (callback: (event: Event) => void) => {
   };
 
   const formatFrontend = (object: Instance<typeof IpcCommand>) =>
-    JSON.stringify(getSnapshot(object));
+    JSON.stringify(object) + "\n";
 
   const formatBackend = (object: Instance<typeof Operation>) =>
-    btoa(JSON.stringify(getSnapshot(object)));
+    btoa(JSON.stringify(object)) + "\n";
 
   const dumpState = () =>
     new Promise<Instance<typeof StateDump>>(resolve => {
@@ -437,6 +438,77 @@ const contract = (callback: (event: Event) => void) => {
     return [promise, cancel] as [typeof promise, typeof cancel];
   };
 
+  const addContact = (
+    label: string,
+    publicEncryptionKey: number[],
+    publicSigningKey: number[]
+  ) =>
+    new Promise<Instance<typeof ContactId>>(resolve => {
+      send(
+        formatFrontend(
+          NewContact.create({
+            NewContact: {
+              label,
+              public_encryption_key: publicEncryptionKey,
+              public_signing_key: publicSigningKey
+            }
+          })
+        )
+      );
+      queue.push({ soughtForType: "ContactId", fulfill: resolve });
+    });
+
+  const renameContact = (contactId: number[], label: string) =>
+    send(
+      formatFrontend(
+        SetContactLabel.create({
+          SetContactLabel: {
+            contact_id: contactId,
+            label
+          }
+        })
+      )
+    );
+
+  const setPublicHalf = (
+    contactId: number[],
+    publicEncryptionKey: number[],
+    publicSigningKey: number[]
+  ) =>
+    new Promise<Instance<typeof ContactId>>(resolve => {
+      send(
+        formatFrontend(
+          SetContactPublicHalf.create({
+            SetContactPublicHalf: {
+              contact_id: contactId,
+              public_encryption_key: publicEncryptionKey,
+              public_signing_key: publicSigningKey
+            }
+          })
+        )
+      );
+      queue.push({ soughtForType: "ContactId", fulfill: resolve });
+    });
+
+  const deleteContact = (contactId: number[]) =>
+    send(
+      formatFrontend(
+        DeleteContact.create({
+          DeleteContact: contactId
+        })
+      )
+    );
+
+  const lookupPublicHalf = (firstTenBytes: number[]) =>
+    new Promise<Instance<typeof PublicHalves>>(resolve => {
+      send(
+        formatFrontend(
+          LookupPublicHalf.create({ LookupPublicHalf: firstTenBytes })
+        )
+      );
+      queue.push({ soughtForType: "PublicHalves", fulfill: resolve });
+    });
+
   return {
     dumpState,
     addInbox,
@@ -448,7 +520,12 @@ const contract = (callback: (event: Event) => void) => {
     unsaveMessage,
     hideMessage,
     encodeMessage,
-    insertMessage
+    insertMessage,
+    addContact,
+    renameContact,
+    setPublicHalf,
+    deleteContact,
+    lookupPublicHalf
   };
 };
 
