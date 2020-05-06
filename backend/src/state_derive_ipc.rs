@@ -1,8 +1,8 @@
 use crate::derive_state::{
-    delete_contact, delete_inbox, encode_message, get_public_half_entry, hide_message,
-    lookup_public_half, new_contact, new_inbox, request_state_dump, save_message,
-    set_autosave_preference, set_contact_label, set_contact_public_half, set_inbox_label,
-    unsave_message, AutosavePreference, Command, Event,
+    delete_contact, delete_inbox, encode_message, get_public_half_entry, lookup_public_half,
+    new_contact, new_inbox, request_state_dump, save_message, set_autosave_preference,
+    set_contact_label, set_contact_public_half, set_inbox_label, unsave_message,
+    AutosavePreference, Command, Event,
 };
 use crate::log;
 use async_std::sync::{channel, Receiver, Sender};
@@ -49,10 +49,6 @@ enum IpcCommand {
         inbox_id: Vec<u8>,
     },
     UnsaveMessage {
-        message_id: Vec<u8>,
-        inbox_id: Vec<u8>,
-    },
-    HideMessage {
         message_id: Vec<u8>,
         inbox_id: Vec<u8>,
     },
@@ -116,8 +112,17 @@ struct Contact {
 }
 
 #[derive(Serialize, Deserialize)]
+struct InboxExpirationTime {
+    inbox_id: Vec<u8>,
+    expiration_time: i64,
+}
+
+#[derive(Serialize, Deserialize)]
 enum IpcAnswer {
-    InboxId(Vec<u8>),
+    CreatedInbox {
+        id: Vec<u8>,
+        public_half: PublicHalf,
+    },
     PublicHalfEntry(Vec<u8>),
     EncodedMessage(Vec<u8>),
     ContactId(Vec<u8>),
@@ -126,6 +131,7 @@ enum IpcAnswer {
         inboxes: Vec<Inbox>,
         messages: Vec<StoredMessage>,
         contacts: Vec<Contact>,
+        inbox_expiration_times: Vec<InboxExpirationTime>,
     },
 }
 
@@ -168,7 +174,14 @@ pub async fn attempt_parse(command_tx: &Sender<Command>, line: &str) -> bool {
     use IpcCommand::*;
     match command {
         NewInbox(label) => {
-            send(&InboxId(new_inbox(&command_tx, label).await));
+            let (id, public_half) = new_inbox(&command_tx, label).await;
+            send(&CreatedInbox {
+                id,
+                public_half: PublicHalf {
+                    public_encryption_key: public_half.public_encryption_key,
+                    public_signing_key: public_half.public_signing_key,
+                },
+            });
         }
         SetAutosavePreference {
             inbox_id,
@@ -268,12 +281,6 @@ pub async fn attempt_parse(command_tx: &Sender<Command>, line: &str) -> bool {
         } => {
             unsave_message(&command_tx, message_id, inbox_id).await;
         }
-        HideMessage {
-            message_id,
-            inbox_id,
-        } => {
-            hide_message(&command_tx, message_id, inbox_id).await;
-        }
         NewContact {
             label,
             public_encryption_key,
@@ -332,8 +339,16 @@ pub async fn attempt_parse(command_tx: &Sender<Command>, line: &str) -> bool {
             let (inbox_tx, inbox_rx) = channel(1);
             let (stored_message_tx, stored_message_rx) = channel(1);
             let (contact_tx, contact_rx) = channel(1);
+            let (inbox_expiration_time_tx, inbox_expiration_time_rx) = channel(1);
 
-            request_state_dump(&command_tx, inbox_tx, stored_message_tx, contact_tx).await;
+            request_state_dump(
+                &command_tx,
+                inbox_tx,
+                stored_message_tx,
+                contact_tx,
+                inbox_expiration_time_tx,
+            )
+            .await;
 
             let inboxes = {
                 let mut inboxes = Vec::new();
@@ -399,7 +414,6 @@ pub async fn attempt_parse(command_tx: &Sender<Command>, line: &str) -> bool {
                         message_type: match stored_message.message_type {
                             derive_state::MessageType::Unsaved => "unsaved",
                             derive_state::MessageType::Saved => "saved",
-                            derive_state::MessageType::Hidden => "hidden",
                         }
                         .to_string(),
                     });
@@ -421,10 +435,24 @@ pub async fn attempt_parse(command_tx: &Sender<Command>, line: &str) -> bool {
                 contacts
             };
 
+            let inbox_expiration_times = {
+                let mut inbox_expiration_times = Vec::new();
+
+                while let Some(inbox_expiration_time) = inbox_expiration_time_rx.recv().await {
+                    inbox_expiration_times.push(InboxExpirationTime {
+                        inbox_id: inbox_expiration_time.inbox_id,
+                        expiration_time: inbox_expiration_time.expiration_time,
+                    });
+                }
+
+                inbox_expiration_times
+            };
+
             send(&StateDump {
                 inboxes,
                 messages,
                 contacts,
+                inbox_expiration_times,
             });
         }
     }
@@ -478,7 +506,6 @@ pub async fn state_derive_ipc(event_rx: Receiver<Event>) {
                     message_type: match message_type {
                         crate::derive_state::MessageType::Unsaved => "unsaved",
                         crate::derive_state::MessageType::Saved => "saved",
-                        crate::derive_state::MessageType::Hidden => "hidden",
                     }
                     .to_string(),
                     global_id,

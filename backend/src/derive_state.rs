@@ -10,6 +10,7 @@ use sodiumoxide::crypto::secretbox;
 use sodiumoxide::crypto::sign;
 use sodiumoxide::crypto::sign::verify;
 use sodiumoxide::randombytes::randombytes;
+use std::collections::HashMap;
 use std::sync::Arc;
 
 #[derive(Debug)]
@@ -75,10 +76,16 @@ pub struct Inbox {
     pub autosave_preference: AutosavePreference,
 }
 
+#[derive(Debug)]
+pub struct InboxExpirationTime {
+    pub inbox_id: Vec<u8>,
+    pub expiration_time: i64,
+}
+
 pub enum Command {
     NewInbox {
         label: String,
-        id_tx: Sender<Vec<u8>>,
+        id_and_public_half_tx: Sender<(Vec<u8>, PublicHalf)>,
     },
     SetAutosavePreference {
         inbox_id: Vec<u8>,
@@ -113,10 +120,6 @@ pub enum Command {
         message_id: Vec<u8>,
         inbox_id: Vec<u8>,
     },
-    HideMessage {
-        message_id: Vec<u8>,
-        inbox_id: Vec<u8>,
-    },
     NewContact {
         contact: Contact,
         id_tx: Sender<Vec<u8>>,
@@ -141,14 +144,19 @@ pub enum Command {
         inbox_tx: Sender<Inbox>,
         stored_message_tx: Sender<StoredMessage>,
         contact_tx: Sender<StoredContact>,
+        inbox_expiration_time_tx: Sender<InboxExpirationTime>,
     },
     Stop,
 }
 
-pub async fn new_inbox(tx: &Sender<Command>, label: String) -> Vec<u8> {
-    let (id_tx, id_rx) = channel(1);
-    tx.send(Command::NewInbox { label, id_tx }).await;
-    id_rx.recv().await.unwrap()
+pub async fn new_inbox(tx: &Sender<Command>, label: String) -> (Vec<u8>, PublicHalf) {
+    let (id_and_public_half_tx, id_and_public_half_rx) = channel(1);
+    tx.send(Command::NewInbox {
+        label,
+        id_and_public_half_tx,
+    })
+    .await;
+    id_and_public_half_rx.recv().await.unwrap()
 }
 
 pub async fn set_autosave_preference(
@@ -219,14 +227,6 @@ pub async fn unsave_message(tx: &Sender<Command>, message_id: Vec<u8>, inbox_id:
     .await;
 }
 
-pub async fn hide_message(tx: &Sender<Command>, message_id: Vec<u8>, inbox_id: Vec<u8>) {
-    tx.send(Command::HideMessage {
-        message_id,
-        inbox_id,
-    })
-    .await;
-}
-
 pub async fn new_contact(tx: &Sender<Command>, contact: Contact) -> Vec<u8> {
     let (id_tx, id_rx) = channel(1);
     tx.send(Command::NewContact { contact, id_tx }).await;
@@ -274,11 +274,13 @@ pub async fn request_state_dump(
     inbox_tx: Sender<Inbox>,
     stored_message_tx: Sender<StoredMessage>,
     contact_tx: Sender<StoredContact>,
+    inbox_expiration_time_tx: Sender<InboxExpirationTime>,
 ) {
     tx.send(Command::RequestStateDump {
         inbox_tx,
         stored_message_tx,
         contact_tx,
+        inbox_expiration_time_tx,
     })
     .await;
 }
@@ -291,7 +293,6 @@ pub async fn stop(tx: &Sender<Command>) {
 pub enum MessageType {
     Saved,
     Unsaved,
-    Hidden,
 }
 
 enum Multiplexed {
@@ -351,7 +352,7 @@ pub enum Event {
 
 lazy_static! {
     static ref CALCULATE_PUBLIC_HALF_ID_DOMAIN: Vec<u8> = {
-        let domain = blake3::hash(b"PARLANCE CALCULATE PUBLIC HALF ID");
+        let domain = blake3::hash(b"CONTRASLEUTH CALCULATE PUBLIC HALF ID");
         domain.as_bytes().to_vec()
     };
 }
@@ -373,10 +374,10 @@ pub async fn derive(
     connection: Connection,
     event_tx: Sender<Event>,
 ) {
-    let obfuscate_public_half_domain = blake3::hash(b"PARLANCE OBFUSCATE PUBLIC HALF");
+    let obfuscate_public_half_domain = blake3::hash(b"CONTRASLEUTH OBFUSCATE PUBLIC HALF");
     let obfuscate_public_half_domain = obfuscate_public_half_domain.as_bytes();
     let obfuscate_public_half_domain = &obfuscate_public_half_domain[..];
-    let calculate_message_id_domain = blake3::hash(b"PARLANCE CALCULATE MESSAGE ID");
+    let calculate_message_id_domain = blake3::hash(b"CONTRASLEUTH CALCULATE MESSAGE ID");
     let calculate_message_id_domain = calculate_message_id_domain.as_bytes();
     let calculate_message_id_domain = &calculate_message_id_domain[..];
 
@@ -660,6 +661,8 @@ pub async fn derive(
         max_expiration_time
     }
 
+    let mut inbox_expiration_time: HashMap<Vec<u8>, i64> = HashMap::new();
+
     let (multiplexed_tx, multiplexed_rx) = channel(1);
     multiplex(multiplexed_tx, mutate_rx, command_rx);
 
@@ -697,6 +700,16 @@ pub async fn derive(
                                     if public_half.public_encryption_key == public_encryption_key
                                         && public_half.public_signing_key == public_signing_key
                                     {
+                                        use std::cmp::max;
+                                        inbox_expiration_time.insert(
+                                            inbox_id.clone(),
+                                            match inbox_expiration_time.get(&inbox_id) {
+                                                Some(old_expiration_time) => {
+                                                    max(*old_expiration_time, expiration_time)
+                                                }
+                                                None => expiration_time,
+                                            },
+                                        );
                                         event_tx
                                             .send(Event::Inbox {
                                                 global_id: inbox_id,
@@ -851,7 +864,10 @@ pub async fn derive(
                 }
             },
             Multiplexed::Command(command) => match command {
-                Command::NewInbox { label, id_tx } => {
+                Command::NewInbox {
+                    label,
+                    id_and_public_half_tx,
+                } => {
                     let (public_encryption_key, private_encryption_key) = box_::gen_keypair();
                     let public_encryption_key = public_encryption_key.as_ref();
                     let private_encryption_key = private_encryption_key.as_ref();
@@ -873,7 +889,15 @@ pub async fn derive(
                             ],
                         )
                         .unwrap();
-                    id_tx.send(global_id).await;
+                    id_and_public_half_tx
+                        .send((
+                            global_id,
+                            PublicHalf {
+                                public_encryption_key: public_encryption_key.to_vec(),
+                                public_signing_key: public_signing_key.to_vec(),
+                            },
+                        ))
+                        .await;
                 }
                 Command::SetAutosavePreference {
                     inbox_id,
@@ -1086,12 +1110,6 @@ pub async fn derive(
                 } => {
                     purge_or_flag(&connection, &event_tx, message_id, inbox_id, "unsaved").await;
                 }
-                Command::HideMessage {
-                    message_id,
-                    inbox_id,
-                } => {
-                    purge_or_flag(&connection, &event_tx, message_id, inbox_id, "hidden").await;
-                }
                 Command::NewContact { contact, id_tx } => {
                     let public_encryption_key = contact.public_half.public_encryption_key;
                     let public_signing_key = contact.public_half.public_signing_key;
@@ -1177,6 +1195,7 @@ pub async fn derive(
                     inbox_tx,
                     stored_message_tx,
                     contact_tx,
+                    inbox_expiration_time_tx,
                 } => {
                     let mut statement = connection
                         .prepare(include_str!("../sql/C. Frontend/Fetch inboxes.sql"))
@@ -1217,8 +1236,6 @@ pub async fn derive(
                             MessageType::Unsaved
                         } else if message_type == "saved" {
                             MessageType::Saved
-                        } else if message_type == "hidden" {
-                            MessageType::Hidden
                         } else {
                             unreachable!()
                         };
@@ -1268,6 +1285,15 @@ pub async fn derive(
                             .await;
                     }
                     drop(contact_tx);
+
+                    for (inbox_id, expiration_time) in inbox_expiration_time.iter() {
+                        inbox_expiration_time_tx
+                            .send(InboxExpirationTime {
+                                inbox_id: inbox_id.to_vec(),
+                                expiration_time: *expiration_time,
+                            })
+                            .await;
+                    }
                 }
                 Command::Stop => {
                     return;
@@ -1330,7 +1356,7 @@ mod tests {
         spawner
             .spawn_local_obj(
                 Box::new(async move {
-                    let inbox_id = new_inbox(&command_tx, "Hello, World!".to_string()).await;
+                    let (inbox_id, _) = new_inbox(&command_tx, "Hello, World!".to_string()).await;
 
                     let (hidden_recipient_public_key, hidden_recipient_private_key) =
                         box_::gen_keypair();
@@ -1472,11 +1498,13 @@ mod tests {
                         let (drained1_tx, drained1_rx) = channel(1);
                         let (stored_message_tx, stored_message_rx) = channel(1);
                         let (drained2_tx, drained2_rx) = channel(1);
+                        let (drained3_tx, drained3_rx) = channel(1);
                         request_state_dump(
                             &command_tx,
                             drained1_tx,
                             stored_message_tx,
                             drained2_tx,
+                            drained3_tx,
                         )
                         .await;
 
@@ -1497,6 +1525,7 @@ mod tests {
                         }
 
                         while let Some(_) = drained2_rx.recv().await {}
+                        while let Some(_) = drained3_rx.recv().await {}
                     }
 
                     use std::time::Duration;
@@ -1510,11 +1539,13 @@ mod tests {
                             let (drained1_tx, drained1_rx) = channel(1);
                             let (stored_message_tx, stored_message_rx) = channel(1);
                             let (drained2_tx, drained2_rx) = channel(1);
+                            let (drained3_tx, drained3_rx) = channel(1);
                             request_state_dump(
                                 &command_tx,
                                 drained1_tx,
                                 stored_message_tx,
                                 drained2_tx,
+                                drained3_tx,
                             )
                             .await;
 
@@ -1525,6 +1556,7 @@ mod tests {
                             }
 
                             while let Some(_) = drained2_rx.recv().await {}
+                            while let Some(_) = drained3_rx.recv().await {}
                         }
                     };
 
@@ -1609,7 +1641,7 @@ mod tests {
                             task::sleep(Duration::from_millis(1100)).await;
                             // The message has expired.
 
-                            hide_message(&command_tx, global_id.clone(), inbox_id.clone()).await;
+                            unsave_message(&command_tx, global_id.clone(), inbox_id.clone()).await;
                             match event_rx.recv().await.unwrap() {
                                 Event::MessageExpired {
                                     global_id: global_id1,
@@ -1644,19 +1676,36 @@ mod tests {
                     let (inbox_tx, inbox_rx) = channel(1);
                     let (drained1_tx, drained1_rx) = channel(1);
                     let (drained2_tx, drained2_rx) = channel(1);
-                    request_state_dump(&command_tx, inbox_tx, drained1_tx, drained2_tx).await;
+                    let (drained3_tx, drained3_rx) = channel(1);
+                    request_state_dump(
+                        &command_tx,
+                        inbox_tx,
+                        drained1_tx,
+                        drained2_tx,
+                        drained3_tx,
+                    )
+                    .await;
                     assert_eq!(
                         inbox_rx.recv().await.unwrap().label,
                         "Lorem Ipsum".to_string()
                     );
                     while let Some(_) = drained1_rx.recv().await {}
                     while let Some(_) = drained2_rx.recv().await {}
+                    while let Some(_) = drained3_rx.recv().await {}
 
                     delete_inbox(&command_tx, inbox_id.clone()).await;
                     let (inbox_tx, inbox_rx) = channel(1);
                     let (stored_message_tx, stored_message_rx) = channel(1);
                     let (drained1_tx, drained1_rx) = channel(1);
-                    request_state_dump(&command_tx, inbox_tx, stored_message_tx, drained1_tx).await;
+                    let (drained2_tx, drained2_rx) = channel(1);
+                    request_state_dump(
+                        &command_tx,
+                        inbox_tx,
+                        stored_message_tx,
+                        drained1_tx,
+                        drained2_tx,
+                    )
+                    .await;
                     if let Some(_) = inbox_rx.recv().await {
                         panic!();
                     }
@@ -1664,6 +1713,7 @@ mod tests {
                         panic!();
                     }
                     while let Some(_) = drained1_rx.recv().await {}
+                    while let Some(_) = drained2_rx.recv().await {}
 
                     let publichalf1 = PublicHalf {
                         public_encryption_key: box_::gen_keypair().0.as_ref().to_vec(),
@@ -1690,10 +1740,19 @@ mod tests {
                     let (drained1_tx, drained1_rx) = channel(1);
                     let (drained2_tx, drained2_rx) = channel(1);
                     let (contact_tx, contact_rx) = channel(1);
-                    request_state_dump(&command_tx, drained1_tx, drained2_tx, contact_tx).await;
+                    let (drained3_tx, drained3_rx) = channel(1);
+                    request_state_dump(
+                        &command_tx,
+                        drained1_tx,
+                        drained2_tx,
+                        contact_tx,
+                        drained3_tx,
+                    )
+                    .await;
                     while let Some(_) = drained1_rx.recv().await {}
                     while let Some(_) = drained2_rx.recv().await {}
                     let contact = contact_rx.recv().await.unwrap();
+                    while let Some(_) = drained3_rx.recv().await {}
                     assert_eq!(contact.global_id, id);
                     assert_eq!(contact.contact.label, "New Label".to_string());
 
@@ -1701,14 +1760,23 @@ mod tests {
                     let (drained1_tx, drained1_rx) = channel(1);
                     let (drained2_tx, drained2_rx) = channel(1);
                     let (contact_tx, contact_rx) = channel(1);
-                    request_state_dump(&command_tx, drained1_tx, drained2_tx, contact_tx).await;
+                    let (drained3_tx, drained3_rx) = channel(1);
+                    request_state_dump(
+                        &command_tx,
+                        drained1_tx,
+                        drained2_tx,
+                        contact_tx,
+                        drained3_tx,
+                    )
+                    .await;
                     while let Some(_) = drained1_rx.recv().await {}
                     while let Some(_) = drained2_rx.recv().await {}
                     if let Some(_) = contact_rx.recv().await {
                         panic!();
                     }
+                    while let Some(_) = drained3_rx.recv().await {}
 
-                    let inbox_id = new_inbox(&command_tx, "Hello, World!".to_string()).await;
+                    let (inbox_id, _) = new_inbox(&command_tx, "Hello, World!".to_string()).await;
                     let entry = get_public_half_entry(&command_tx, inbox_id.clone()).await;
                     let now = Utc::now().timestamp();
 
@@ -1732,6 +1800,25 @@ mod tests {
                         }
                         _ => panic!(),
                     }
+
+                    let (drained1_tx, drained1_rx) = channel(1);
+                    let (drained2_tx, drained2_rx) = channel(1);
+                    let (drained3_tx, drained3_rx) = channel(1);
+                    let (inbox_expiration_time_tx, inbox_expiration_time_rx) = channel(1);
+                    request_state_dump(
+                        &command_tx,
+                        drained1_tx,
+                        drained2_tx,
+                        drained3_tx,
+                        inbox_expiration_time_tx,
+                    )
+                    .await;
+                    while let Some(_) = drained1_rx.recv().await {}
+                    while let Some(_) = drained2_rx.recv().await {}
+                    while let Some(_) = drained3_rx.recv().await {}
+                    let inbox_expiration_time = inbox_expiration_time_rx.recv().await.unwrap();
+                    assert_eq!(inbox_expiration_time.inbox_id, inbox_id);
+                    assert_eq!(inbox_expiration_time.expiration_time, now + 1);
 
                     insert_message(
                         &on_disk_tx,

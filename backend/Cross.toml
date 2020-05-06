@@ -1,10 +1,10 @@
 [target.aarch64-linux-android]
-image = "parlance-crosscompile-images/cross-utils:aarch64-linux-android"
+image = "contrasleuth-crosscompile-images/cross-utils:aarch64-linux-android"
 [target.arm-linux-androideabi]
-image = "parlance-crosscompile-images/cross-utils:arm-linux-androideabi"
+image = "contrasleuth-crosscompile-images/cross-utils:arm-linux-androideabi"
 [target.armv7-linux-androideabi]
-image = "parlance-crosscompile-images/cross-utils:armv7-linux-androideabi"
+image = "contrasleuth-crosscompile-images/cross-utils:armv7-linux-androideabi"
 [target.i686-linux-android]
-image = "parlance-crosscompile-images/cross-utils:i686-linux-android"
+image = "contrasleuth-crosscompile-images/cross-utils:i686-linux-android"
 [target.x86_64-linux-android]
-image = "parlance-crosscompile-images/cross-utils:x86_64-linux-android"
+image = "contrasleuth-crosscompile-images/cross-utils:x86_64-linux-android"

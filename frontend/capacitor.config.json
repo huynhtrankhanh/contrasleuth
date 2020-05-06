@@ -1,5 +1,5 @@
 {
-  "appId": "network.parlance",
+  "appId": "cf.contrasleuth",
   "appName": "frontend",
   "bundledWebRuntime": false,
   "npmClient": "npm",

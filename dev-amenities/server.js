@@ -22,7 +22,7 @@ buildProcess.on("close", (code, signal) => {
 
 const proceed = () => {
   const { stdin, stdout, stderr } = spawn(
-    "../backend/target/debug/parlance --address 127.0.0.1:0 --database backend.sqlite --frontend-database frontend.sqlite",
+    "../backend/target/debug/contrasleuth --address 127.0.0.1:0 --database backend.sqlite --frontend-database frontend.sqlite",
     {
       shell: true
     }

@@ -57,7 +57,7 @@ const prepare = (() => {
       stdin,
       stdout
     } = spawn(
-      `../backend/target/release/parlance --database /tmp/${randomDBName}.sqlite --address 127.0.0.1:0 --reverse-address 127.0.0.1:0`,
+      `../backend/target/release/contrasleuth --database /tmp/${randomDBName}.sqlite --address 127.0.0.1:0 --reverse-address 127.0.0.1:0 --dump-inventory`,
       { shell: true }
     );
 
@@ -69,6 +69,7 @@ const prepare = (() => {
         // this field.
         expiration_time: number;
         operation_id: string;
+        associated_frontend_data: string;
       };
     }
 
@@ -294,7 +295,8 @@ const prepare = (() => {
             Submit: {
               payload,
               expiration_time: expirationTime,
-              operation_id: id
+              operation_id: id,
+              associated_frontend_data: ""
             }
           })
         );

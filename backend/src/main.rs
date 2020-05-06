@@ -35,7 +35,7 @@ fn main() {
         log::fatal("sodiumoxide initialization failed");
         exit(1);
     }
-    let matches = App::new("Parlance")
+    let matches = App::new("Contrasleuth")
         .version("alpha")
         .author("Huỳnh Trần Khanh")
         .arg(
@@ -73,6 +73,12 @@ fn main() {
                 .help("Sets the reverse reconciliation client address")
                 .takes_value(true),
         )
+        .arg(
+            Arg::with_name("dump inventory")
+                .long("dump-inventory")
+                .help("Dump inventory hashes when new messages get inserted")
+                .takes_value(false),
+        )
         .get_matches();
 
     let database_path = matches.value_of("database").unwrap().to_owned();
@@ -107,6 +113,8 @@ fn main() {
         },
         None => None,
     };
+
+    let dump_inventory = matches.is_present("dump inventory");
 
     log::welcome("Standard streams are being used for interprocess communication");
     log::notice(format!(
@@ -336,6 +344,7 @@ fn main() {
                     on_disk_tx,
                     command_tx,
                     spawner_clone,
+                    dump_inventory,
                 )
                 .await;
             })

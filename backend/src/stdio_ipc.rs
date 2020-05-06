@@ -23,6 +23,7 @@ enum Operation {
         payload: Vec<u8>,
         expiration_time: i64,
         operation_id: String,
+        associated_frontend_data: String,
     },
     Query {
         hash: Vec<u8>,
@@ -39,6 +40,13 @@ enum Operation {
         address: String,
         operation_id: String,
     },
+    DumpPendingProofOfWorkOperations,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct ProofOfWorkOperation {
+    operation_id: String,
+    associated_frontend_data: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -69,6 +77,7 @@ pub enum Message<'a> {
     ClientListenAddress {
         address: &'a str,
     },
+    PendingProofOfWorkOperations(Vec<ProofOfWorkOperation>),
 }
 
 pub fn format_struct<T: Serialize>(value: &T) -> String {
@@ -81,10 +90,15 @@ pub async fn communicate(
     on_disk_tx: Sender<OnDisk>,
     command_tx: Option<Sender<Command>>,
     spawner: LocalSpawner,
+    dump_inventory: bool,
 ) {
     let atomic_cancel_flags: Rc<RwLock<HashMap<String, Arc<AtomicBool>>>> =
         Rc::new(RwLock::new(HashMap::new()));
-    {
+
+    let associated_frontend_data_map: Rc<RwLock<HashMap<String, String>>> =
+        Rc::new(RwLock::new(HashMap::new()));
+
+    if dump_inventory {
         let reconciliation_intent = reconciliation_intent.clone();
         let in_memory_tx = in_memory_tx.clone();
         spawner
@@ -145,13 +159,19 @@ pub async fn communicate(
                         payload,
                         expiration_time,
                         operation_id,
+                        associated_frontend_data,
                     } => {
                         log::notice(
                             "A task has been spawned to calculate the proof of work. Hang tight.",
                         );
+                        associated_frontend_data_map
+                            .write()
+                            .await
+                            .insert(operation_id.clone(), associated_frontend_data);
                         let atomic_cancel_flags = atomic_cancel_flags.clone();
                         let reconciliation_intent = reconciliation_intent.clone();
                         let on_disk_tx = on_disk_tx.clone();
+                        let associated_frontend_data_map = associated_frontend_data_map.clone();
                         spawner.spawn_local_obj(
                                 Box::new(async move {
                                     use crate::proof_of_work::{get_expected_target2, prove};
@@ -193,6 +213,7 @@ pub async fn communicate(
                                                 .write()
                                                 .await
                                                 .remove(&operation_id);
+                                            associated_frontend_data_map.write().await.remove(&operation_id);
                                             log::notice("Proof of work cancelled");
                                             return;
                                         }
@@ -206,6 +227,7 @@ pub async fn communicate(
                                         .write()
                                         .await
                                         .remove(&operation_id);
+                                    associated_frontend_data_map.write().await.remove(&operation_id);
                                     log::notice("Message submitted successfully");
                                 })
                                 .into(),
@@ -322,6 +344,18 @@ pub async fn communicate(
                                 }));
                             },
                         );
+                    }
+                    Operation::DumpPendingProofOfWorkOperations => {
+                        let mut dump = Vec::new();
+                        for (operation_id, associated_frontend_data) in
+                            associated_frontend_data_map.read().await.iter()
+                        {
+                            dump.push(ProofOfWorkOperation {
+                                operation_id: operation_id.to_string(),
+                                associated_frontend_data: associated_frontend_data.to_string(),
+                            })
+                        }
+                        log::ipc(format_struct(&Message::PendingProofOfWorkOperations(dump)));
                     }
                 }
             }
