@@ -24,10 +24,10 @@ yarn-debug.log*
 yarn-error.log*
 
 # binaries
-parlance-aarch64-linux-android
-parlance-arm-linux-androideabi
-parlance-armv7-linux-androideabi
-parlance-i686-linux-android
-parlance-x86_64-linux-android
+contrasleuth-aarch64-linux-android
+contrasleuth-arm-linux-androideabi
+contrasleuth-armv7-linux-androideabi
+contrasleuth-i686-linux-android
+contrasleuth-x86_64-linux-android
 
 .gradle

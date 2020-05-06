@@ -3,46 +3,20 @@ import uuid from "uuid/v4";
 import {
   PublicHalf,
   Attachment,
-  NewInbox,
-  SetAutosavePreference,
-  SetInboxLabel,
-  DeleteInbox,
-  GetPublicHalfEntry,
-  EncodeMessage,
-  SaveMessage,
-  UnsaveMessage,
-  HideMessage,
-  NewContact,
-  SetContactLabel,
-  SetContactPublicHalf,
-  DeleteContact,
-  LookupPublicHalf,
-  RequestStateDump,
-  IpcCommand,
-  Inbox,
-  StoredMessage,
-  Message,
-  Contact,
-  InboxId,
+  CreatedInbox,
   PublicHalfEntry,
   EncodedMessage,
   ContactId,
   PublicHalves,
   StateDump,
+  IpcCommand,
   IpcAnswer,
   MessageEvent,
   MessageExpirationTimeExtended,
   MessageExpired,
   InboxEvent,
   IpcEvent,
-  Submit,
-  Query,
-  CancelSubmitOperation,
-  EstablishConnection,
-  EstablishReverseConnection,
-  Operation,
   Inventory,
-  InventoryMessage,
   BackendMessage,
   ProofOfWorkCancelled,
   ProofOfWorkCompleted,
@@ -51,25 +25,26 @@ import {
   ConnectionSevered,
   ServerListenAddress,
   ClientListenAddress,
-  Backend
+  Backend,
+  Operation,
+  PendingProofOfWorkOperations,
 } from "./rpc-schema";
-import { types, getType, getSnapshot } from "mobx-state-tree";
-type Instance<T> = T extends { Type: any } ? T["Type"] : T;
+import * as t from "./typecheck";
 
-type Event =
+export type Event =
   | {
       type: "MessageEvent";
-      value: Instance<typeof MessageEvent>;
+      value: MessageEvent;
     }
   | {
       type: "MessageExpirationTimeExtended";
-      value: Instance<typeof MessageExpirationTimeExtended>;
+      value: MessageExpirationTimeExtended;
     }
   | {
       type: "MessageExpired";
-      value: Instance<typeof MessageExpired>;
+      value: MessageExpired;
     }
-  | { type: "InboxEvent"; value: Instance<typeof InboxEvent> };
+  | { type: "InboxEvent"; value: InboxEvent };
 
 const contract = (callback: (event: Event) => void) => {
   const socket = io();
@@ -96,28 +71,28 @@ const contract = (callback: (event: Event) => void) => {
 
   type AnswerRequest =
     | {
-        soughtForType: "InboxId";
-        fulfill: (value: Instance<typeof InboxId>) => void;
+        soughtForType: "CreatedInbox";
+        fulfill: (value: CreatedInbox) => void;
       }
     | {
         soughtForType: "PublicHalfEntry";
-        fulfill: (value: Instance<typeof PublicHalfEntry>) => void;
+        fulfill: (value: PublicHalfEntry) => void;
       }
     | {
         soughtForType: "EncodedMessage";
-        fulfill: (value: Instance<typeof EncodedMessage>) => void;
+        fulfill: (value: EncodedMessage) => void;
       }
     | {
         soughtForType: "ContactId";
-        fulfill: (value: Instance<typeof ContactId>) => void;
+        fulfill: (value: ContactId) => void;
       }
     | {
         soughtForType: "PublicHalves";
-        fulfill: (value: Instance<typeof PublicHalves>) => void;
+        fulfill: (value: PublicHalves) => void;
       }
     | {
         soughtForType: "StateDump";
-        fulfill: (value: Instance<typeof StateDump>) => void;
+        fulfill: (value: StateDump) => void;
       };
 
   const queue: AnswerRequest[] = [];
@@ -126,348 +101,470 @@ const contract = (callback: (event: Event) => void) => {
     (result: "cancelled" | "completed") => void
   > = new Map();
 
-  const Frontend = types.union(IpcAnswer, IpcEvent);
   const parseFrontend = (object: any) => {
     console.log(object);
-    const hydrated = Frontend.create(object);
 
-    switch (getType(hydrated)) {
-      case InboxId: {
-        const message = hydrated as Instance<typeof InboxId>;
-        const answerRequest = queue.shift();
-        if (
-          answerRequest !== undefined &&
-          answerRequest.soughtForType === "InboxId"
-        ) {
-          answerRequest.fulfill(message);
-        } else console.log(new Error("This should be unreachable."));
-        break;
-      }
-      case PublicHalfEntry: {
-        const message = hydrated as Instance<typeof PublicHalfEntry>;
-        const answerRequest = queue.shift();
-        if (
-          answerRequest !== undefined &&
-          answerRequest.soughtForType === "PublicHalfEntry"
-        ) {
-          answerRequest.fulfill(message);
-        } else console.log(new Error("This should be unreachable."));
-        break;
-      }
-      case EncodedMessage: {
-        const message = hydrated as Instance<typeof EncodedMessage>;
-        const answerRequest = queue.shift();
-        if (
-          answerRequest !== undefined &&
-          answerRequest.soughtForType === "EncodedMessage"
-        ) {
-          answerRequest.fulfill(message);
-        } else console.log(new Error("This should be unreachable."));
-        break;
-      }
-      case ContactId: {
-        const message = hydrated as Instance<typeof ContactId>;
-        const answerRequest = queue.shift();
-        if (
-          answerRequest !== undefined &&
-          answerRequest.soughtForType === "ContactId"
-        ) {
-          answerRequest.fulfill(message);
-        } else console.log(new Error("This should be unreachable."));
-        break;
-      }
-      case PublicHalves: {
-        const message = hydrated as Instance<typeof PublicHalves>;
-        const answerRequest = queue.shift();
-        if (
-          answerRequest !== undefined &&
-          answerRequest.soughtForType === "PublicHalves"
-        ) {
-          answerRequest.fulfill(message);
-        } else console.log(new Error("This should be unreachable."));
-        break;
-      }
-      case StateDump: {
-        const message = hydrated as Instance<typeof StateDump>;
-        const answerRequest = queue.shift();
-        if (
-          answerRequest !== undefined &&
-          answerRequest.soughtForType === "StateDump"
-        ) {
-          answerRequest.fulfill(message);
-        } else console.log(new Error("This should be unreachable."));
-        break;
-      }
-      case MessageEvent: {
-        const message = hydrated as Instance<typeof MessageEvent>;
-        callback({ type: "MessageEvent", value: message });
-        break;
-      }
-      case MessageExpirationTimeExtended: {
-        const message = hydrated as Instance<
-          typeof MessageExpirationTimeExtended
-        >;
-        callback({ type: "MessageExpirationTimeExtended", value: message });
-        break;
-      }
-      case MessageExpired: {
-        const message = hydrated as Instance<typeof MessageExpired>;
-        callback({ type: "MessageExpired", value: message });
-        break;
-      }
-      case InboxEvent: {
-        const message = hydrated as Instance<typeof InboxEvent>;
-        callback({ type: "InboxEvent", value: message });
-        break;
-      }
-      default: {
+    const marshal = (object: any) => {
+      const Frontend = t.union([IpcAnswer, IpcEvent]);
+      const result = Frontend(object);
+      if (!result) {
         console.log(new Error("This should be unreachable."));
+        return;
       }
+
+      if (CreatedInbox(object)) {
+        return {
+          type: "CreatedInbox" as "CreatedInbox",
+          value: object as CreatedInbox,
+        };
+      }
+
+      if (PublicHalfEntry(object)) {
+        return {
+          type: "PublicHalfEntry" as "PublicHalfEntry",
+          value: object as PublicHalfEntry,
+        };
+      }
+
+      if (EncodedMessage(object)) {
+        return {
+          type: "EncodedMessage" as "EncodedMessage",
+          value: object as EncodedMessage,
+        };
+      }
+
+      if (ContactId(object)) {
+        return { type: "ContactId" as "ContactId", value: object as ContactId };
+      }
+
+      if (PublicHalves(object)) {
+        return {
+          type: "PublicHalves" as "PublicHalves",
+          value: object as PublicHalves,
+        };
+      }
+
+      if (StateDump(object)) {
+        return { type: "StateDump" as "StateDump", value: object as StateDump };
+      }
+
+      if (MessageEvent(object)) {
+        return {
+          type: "MessageEvent" as "MessageEvent",
+          value: object as MessageEvent,
+        };
+      }
+
+      if (MessageExpirationTimeExtended(object)) {
+        return {
+          type: "MessageExpirationTimeExtended" as "MessageExpirationTimeExtended",
+          value: object as MessageExpirationTimeExtended,
+        };
+      }
+
+      if (MessageExpired(object)) {
+        return {
+          type: "MessageExpired" as "MessageExpired",
+          value: object as MessageExpired,
+        };
+      }
+
+      if (InboxEvent(object)) {
+        return {
+          type: "InboxEvent" as "InboxEvent",
+          value: object as InboxEvent,
+        };
+      }
+    };
+
+    const marshalled = marshal(object);
+
+    if (marshalled === undefined) {
+      console.log(new Error("This should be unreachable."));
+      return;
+    }
+
+    if (marshalled.type === "CreatedInbox") {
+      const message = marshalled.value;
+      const answerRequest = queue.shift();
+      if (
+        answerRequest !== undefined &&
+        answerRequest.soughtForType === "CreatedInbox"
+      ) {
+        answerRequest.fulfill(message);
+      } else console.log(new Error("This should be unreachable."));
+    }
+
+    if (marshalled.type === "PublicHalfEntry") {
+      const message = marshalled.value;
+      const answerRequest = queue.shift();
+      if (
+        answerRequest !== undefined &&
+        answerRequest.soughtForType === "PublicHalfEntry"
+      ) {
+        answerRequest.fulfill(message);
+      } else console.log(new Error("This should be unreachable."));
+    }
+
+    if (marshalled.type === "EncodedMessage") {
+      const message = marshalled.value;
+      const answerRequest = queue.shift();
+      if (
+        answerRequest !== undefined &&
+        answerRequest.soughtForType === "EncodedMessage"
+      ) {
+        answerRequest.fulfill(message);
+      } else console.log(new Error("This should be unreachable."));
+    }
+
+    if (marshalled.type === "ContactId") {
+      const message = marshalled.value;
+      const answerRequest = queue.shift();
+      if (
+        answerRequest !== undefined &&
+        answerRequest.soughtForType === "ContactId"
+      ) {
+        answerRequest.fulfill(message);
+      } else console.log(new Error("This should be unreachable."));
+    }
+
+    if (marshalled.type === "PublicHalves") {
+      const message = marshalled.value;
+      const answerRequest = queue.shift();
+      if (
+        answerRequest !== undefined &&
+        answerRequest.soughtForType === "PublicHalves"
+      ) {
+        answerRequest.fulfill(message);
+      } else console.log(new Error("This should be unreachable."));
+    }
+
+    if (marshalled.type === "StateDump") {
+      const message = marshalled.value;
+      const answerRequest = queue.shift();
+      if (
+        answerRequest !== undefined &&
+        answerRequest.soughtForType === "StateDump"
+      ) {
+        answerRequest.fulfill(message);
+      } else console.log(new Error("This should be unreachable."));
+    }
+
+    if (marshalled.type === "MessageEvent") {
+      const message = marshalled.value;
+      callback({ type: "MessageEvent", value: message });
+    }
+
+    if (marshalled.type === "MessageExpirationTimeExtended") {
+      const message = marshalled.value;
+      callback({ type: "MessageExpirationTimeExtended", value: message });
+    }
+
+    if (marshalled.type === "MessageExpired") {
+      const message = marshalled.value;
+      callback({ type: "MessageExpired", value: message });
+    }
+
+    if (marshalled.type === "InboxEvent") {
+      const message = marshalled.value;
+      callback({ type: "InboxEvent", value: message });
     }
   };
+
+  const pendingOperationsRequestQueue: ((
+    pendingOperation: PendingProofOfWorkOperations
+  ) => void)[] = [];
 
   const parseBackend = (object: any) => {
     console.log(object);
-    const hydrated = Backend.create(object);
-    switch (getType(hydrated)) {
-      case Inventory: {
-        break;
+
+    const marshal = (object: any) => {
+      const result = Backend(object);
+      if (!result) {
+        console.log(new Error("This should be unreachable."));
+        return;
       }
-      case BackendMessage: {
-        break;
+
+      if (Inventory(object)) {
+        return { type: "Inventory" as "Inventory", value: object as Inventory };
       }
-      case ProofOfWorkCancelled: {
-        const message = hydrated as Instance<typeof ProofOfWorkCancelled>;
-        const request = proofOfWorkResultRequests.get(
-          message.ProofOfWorkCancelled.in_reply_to
-        );
-        if (request === undefined) {
-          console.log(new Error("This should be unreachable."));
-        } else {
-          request("cancelled");
-        }
-        break;
+
+      if (BackendMessage(object)) {
+        return {
+          type: "BackendMessage" as "BackendMessage",
+          value: object as BackendMessage,
+        };
       }
-      case ProofOfWorkCompleted: {
-        const message = hydrated as Instance<typeof ProofOfWorkCompleted>;
-        const request = proofOfWorkResultRequests.get(
-          message.ProofOfWorkCompleted.in_reply_to
-        );
-        if (request === undefined) {
-          console.log(new Error("This should be unreachable."));
-        } else {
-          request("completed");
-        }
-        break;
+
+      if (ProofOfWorkCancelled(object)) {
+        return {
+          type: "ProofOfWorkCancelled" as "ProofOfWorkCancelled",
+          value: object as ProofOfWorkCancelled,
+        };
       }
-      case ConnectionEstablishmentFailure: {
-        break;
+
+      if (ProofOfWorkCompleted(object)) {
+        return {
+          type: "ProofOfWorkCompleted" as "ProofOfWorkCompleted",
+          value: object as ProofOfWorkCompleted,
+        };
       }
-      case ReconcileFailure: {
-        break;
+
+      if (ConnectionEstablishmentFailure(object)) {
+        return {
+          type: "ConnectionEstablishmentFailure" as "ConnectionEstablishmentFailure",
+          value: object as ConnectionEstablishmentFailure,
+        };
       }
-      case ConnectionSevered: {
-        break;
+
+      if (ReconcileFailure(object)) {
+        return {
+          type: "ReconcileFailure" as "ReconcileFailure",
+          value: object as ReconcileFailure,
+        };
       }
-      case ServerListenAddress: {
-        break;
+
+      if (ConnectionSevered(object)) {
+        return {
+          type: "ConnectionSevered" as "ConnectionSevered",
+          value: object as ConnectionSevered,
+        };
       }
-      case ClientListenAddress: {
-        break;
+
+      if (ServerListenAddress(object)) {
+        return {
+          type: "ServerListenAddress" as "ServerListenAddress",
+          value: object as ServerListenAddress,
+        };
       }
-      default: {
+
+      if (ClientListenAddress(object)) {
+        return {
+          type: "ClientListenAddress" as "ClientListenAddress",
+          value: object as ClientListenAddress,
+        };
+      }
+
+      if (PendingProofOfWorkOperations(object)) {
+        return {
+          type: "PendingProofOfWorkOperations" as "PendingProofOfWorkOperations",
+          value: object as PendingProofOfWorkOperations,
+        };
+      }
+    };
+
+    const marshalled = marshal(object);
+
+    if (marshalled === undefined) {
+      console.log(new Error("This should be unreachable."));
+      return;
+    }
+
+    if (marshalled.type === "ProofOfWorkCancelled") {
+      const message = marshalled.value;
+      const request = proofOfWorkResultRequests.get(
+        message.ProofOfWorkCancelled.in_reply_to
+      );
+      if (request === undefined) {
+        console.log(new Error("This should be unreachable."));
+      } else {
+        request("cancelled");
+      }
+    }
+
+    if (marshalled.type === "ProofOfWorkCompleted") {
+      const message = marshalled.value;
+      const request = proofOfWorkResultRequests.get(
+        message.ProofOfWorkCompleted.in_reply_to
+      );
+      if (request === undefined) {
+        console.log(new Error("This should be unreachable."));
+      } else {
+        request("completed");
+      }
+    }
+
+    if (marshalled.type === "PendingProofOfWorkOperations") {
+      const message = marshalled.value;
+      const request = pendingOperationsRequestQueue.shift();
+      if (request !== undefined) {
+        request(message);
+      } else {
         console.log(new Error("This should be unreachable."));
       }
     }
   };
 
-  const formatFrontend = (object: Instance<typeof IpcCommand>) =>
-    JSON.stringify(object) + "\n";
+  const formatFrontend = (object: IpcCommand) => JSON.stringify(object) + "\n";
 
-  const formatBackend = (object: Instance<typeof Operation>) =>
+  const formatBackend = (object: Operation) =>
     btoa(JSON.stringify(object)) + "\n";
 
   const dumpState = () =>
-    new Promise<Instance<typeof StateDump>>(resolve => {
-      send(formatFrontend(RequestStateDump.create("RequestStateDump")));
+    new Promise<StateDump>((resolve) => {
+      send(formatFrontend("RequestStateDump"));
       queue.push({
         soughtForType: "StateDump",
-        fulfill: resolve
+        fulfill: resolve,
       });
     });
 
+  const dumpPendingOperations = () =>
+    new Promise<PendingProofOfWorkOperations>((resolve) => {
+      send(formatBackend("DumpPendingProofOfWorkOperations"));
+      pendingOperationsRequestQueue.push(resolve);
+    });
+
   const addInbox = (label: string) =>
-    new Promise<Instance<typeof InboxId>>(resolve => {
-      send(formatFrontend(NewInbox.create({ NewInbox: label })));
+    new Promise<CreatedInbox>((resolve) => {
+      send(formatFrontend({ NewInbox: label }));
       queue.push({
-        soughtForType: "InboxId",
-        fulfill: resolve
+        soughtForType: "CreatedInbox",
+        fulfill: resolve,
       });
     });
   const renameInbox = (inboxId: number[], label: string) =>
     send(
-      formatFrontend(
-        SetInboxLabel.create({
-          SetInboxLabel: {
-            inbox_id: inboxId,
-            label
-          }
-        })
-      )
+      formatFrontend({
+        SetInboxLabel: {
+          inbox_id: inboxId,
+          label,
+        },
+      })
     );
   const deleteInbox = (inboxId: number[]) =>
-    send(formatFrontend(DeleteInbox.create({ DeleteInbox: inboxId })));
+    send(formatFrontend({ DeleteInbox: inboxId }));
   const setAutosavePreference = (
     inboxId: number[],
     preference: "autosave" | "manual"
   ) =>
     send(
-      formatFrontend(
-        SetAutosavePreference.create({
-          SetAutosavePreference: {
-            inbox_id: inboxId,
-            autosave_preference: preference
-          }
-        })
-      )
+      formatFrontend({
+        SetAutosavePreference: {
+          inbox_id: inboxId,
+          autosave_preference: preference,
+        },
+      })
     );
   const getPublicHalfEntry = (inboxId: number[]) =>
-    new Promise<Instance<typeof PublicHalfEntry>>(resolve => {
-      send(
-        formatFrontend(
-          GetPublicHalfEntry.create({ GetPublicHalfEntry: inboxId })
-        )
-      );
+    new Promise<PublicHalfEntry>((resolve) => {
+      send(formatFrontend({ GetPublicHalfEntry: inboxId }));
       queue.push({
         soughtForType: "PublicHalfEntry",
-        fulfill: resolve
+        fulfill: resolve,
       });
     });
 
   const saveMessage = (messageId: number[], inboxId: number[]) =>
     send(
-      formatFrontend(
-        SaveMessage.create({
-          SaveMessage: {
-            message_id: messageId,
-            inbox_id: inboxId
-          }
-        })
-      )
+      formatFrontend({
+        SaveMessage: {
+          message_id: messageId,
+          inbox_id: inboxId,
+        },
+      })
     );
   const unsaveMessage = (messageId: number[], inboxId: number[]) =>
     send(
-      formatFrontend(
-        UnsaveMessage.create({
-          UnsaveMessage: {
-            message_id: messageId,
-            inbox_id: inboxId
-          }
-        })
-      )
-    );
-  const hideMessage = (messageId: number[], inboxId: number[]) =>
-    send(
-      formatFrontend(
-        HideMessage.create({
-          HideMessage: {
-            message_id: messageId,
-            inbox_id: inboxId
-          }
-        })
-      )
+      formatFrontend({
+        UnsaveMessage: {
+          message_id: messageId,
+          inbox_id: inboxId,
+        },
+      })
     );
   const encodeMessage = (
     inReplyTo: number[] | undefined,
-    disclosedRecipients: Instance<typeof PublicHalf>[],
+    disclosedRecipients: PublicHalf[],
     richTextFormat: string,
     content: string,
-    attachments: Instance<typeof Attachment>[],
+    attachments: Attachment[],
     hiddenRecipients: number[][],
     inboxId: number[]
   ) =>
-    new Promise<Instance<typeof EncodedMessage>>(resolve => {
+    new Promise<EncodedMessage>((resolve) => {
       send(
-        formatFrontend(
-          EncodeMessage.create({
-            EncodeMessage: {
-              in_reply_to: inReplyTo,
-              disclosed_recipients: disclosedRecipients,
-              rich_text_format: richTextFormat,
-              content,
-              attachments,
-              hidden_recipients: hiddenRecipients,
-              inbox_id: inboxId
-            }
-          })
-        )
+        formatFrontend({
+          EncodeMessage: {
+            in_reply_to: inReplyTo === undefined ? null : inReplyTo,
+            disclosed_recipients: disclosedRecipients,
+            rich_text_format: richTextFormat,
+            content,
+            attachments,
+            hidden_recipients: hiddenRecipients,
+            inbox_id: inboxId,
+          },
+        })
       );
       queue.push({
         soughtForType: "EncodedMessage",
-        fulfill: resolve
+        fulfill: resolve,
       });
     });
 
-  const insertMessage = (payload: number[], expirationTime: number) => {
+  const waitOnOperation = (operationId: string) =>
+    new Promise<"completed" | "cancelled">((resolve) => {
+      proofOfWorkResultRequests.set(operationId, resolve);
+    });
+
+  const insertMessage = (
+    payload: number[],
+    expirationTime: number,
+    associatedData: string
+  ) => {
     const operationId = uuid();
     send(
-      formatBackend(
-        Submit.create({
-          Submit: {
-            payload,
-            expiration_time: expirationTime,
-            operation_id: operationId
-          }
-        })
-      )
+      formatBackend({
+        Submit: {
+          payload,
+          expiration_time: expirationTime,
+          operation_id: operationId,
+          associated_frontend_data: associatedData,
+        },
+      })
     );
-    const promise = new Promise<"completed" | "cancelled">(resolve =>
+    const promise = new Promise<"completed" | "cancelled">((resolve) =>
       proofOfWorkResultRequests.set(operationId, resolve)
     );
-    const cancel = () =>
-      send(
-        formatBackend(
-          CancelSubmitOperation.create({
-            CancelSubmitOperation: {
-              to_be_cancelled: operationId
-            }
-          })
-        )
-      );
 
-    return [promise, cancel] as [typeof promise, typeof cancel];
+    return [promise, operationId] as [typeof promise, string];
   };
+
+  const cancelSubmitOperation = (operationId: string) =>
+    send(
+      formatBackend({
+        CancelSubmitOperation: {
+          to_be_cancelled: operationId,
+        },
+      })
+    );
 
   const addContact = (
     label: string,
     publicEncryptionKey: number[],
     publicSigningKey: number[]
   ) =>
-    new Promise<Instance<typeof ContactId>>(resolve => {
+    new Promise<ContactId>((resolve) => {
       send(
-        formatFrontend(
-          NewContact.create({
-            NewContact: {
-              label,
-              public_encryption_key: publicEncryptionKey,
-              public_signing_key: publicSigningKey
-            }
-          })
-        )
+        formatFrontend({
+          NewContact: {
+            label,
+            public_encryption_key: publicEncryptionKey,
+            public_signing_key: publicSigningKey,
+          },
+        })
       );
       queue.push({ soughtForType: "ContactId", fulfill: resolve });
     });
 
   const renameContact = (contactId: number[], label: string) =>
     send(
-      formatFrontend(
-        SetContactLabel.create({
-          SetContactLabel: {
-            contact_id: contactId,
-            label
-          }
-        })
-      )
+      formatFrontend({
+        SetContactLabel: {
+          contact_id: contactId,
+          label,
+        },
+      })
     );
 
   const setPublicHalf = (
@@ -475,37 +572,29 @@ const contract = (callback: (event: Event) => void) => {
     publicEncryptionKey: number[],
     publicSigningKey: number[]
   ) =>
-    new Promise<Instance<typeof ContactId>>(resolve => {
+    new Promise<ContactId>((resolve) => {
       send(
-        formatFrontend(
-          SetContactPublicHalf.create({
-            SetContactPublicHalf: {
-              contact_id: contactId,
-              public_encryption_key: publicEncryptionKey,
-              public_signing_key: publicSigningKey
-            }
-          })
-        )
+        formatFrontend({
+          SetContactPublicHalf: {
+            contact_id: contactId,
+            public_encryption_key: publicEncryptionKey,
+            public_signing_key: publicSigningKey,
+          },
+        })
       );
       queue.push({ soughtForType: "ContactId", fulfill: resolve });
     });
 
   const deleteContact = (contactId: number[]) =>
     send(
-      formatFrontend(
-        DeleteContact.create({
-          DeleteContact: contactId
-        })
-      )
+      formatFrontend({
+        DeleteContact: contactId,
+      })
     );
 
   const lookupPublicHalf = (firstTenBytes: number[]) =>
-    new Promise<Instance<typeof PublicHalves>>(resolve => {
-      send(
-        formatFrontend(
-          LookupPublicHalf.create({ LookupPublicHalf: firstTenBytes })
-        )
-      );
+    new Promise<PublicHalves>((resolve) => {
+      send(formatFrontend({ LookupPublicHalf: firstTenBytes }));
       queue.push({ soughtForType: "PublicHalves", fulfill: resolve });
     });
 
@@ -518,14 +607,16 @@ const contract = (callback: (event: Event) => void) => {
     getPublicHalfEntry,
     saveMessage,
     unsaveMessage,
-    hideMessage,
     encodeMessage,
     insertMessage,
     addContact,
     renameContact,
     setPublicHalf,
     deleteContact,
-    lookupPublicHalf
+    lookupPublicHalf,
+    dumpPendingOperations,
+    waitOnOperation,
+    cancelSubmitOperation,
   };
 };
 

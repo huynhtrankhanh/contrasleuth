@@ -3,8 +3,7 @@ CREATE TABLE IF NOT EXISTS messages (
     message_type TEXT CHECK(
         message_type IN (
             "unsaved",
-            "saved",
-            "hidden"
+            "saved"
         )
     ) NOT NULL,
     content BLOB NOT NULL,

@@ -1,51 +1,47 @@
-import React from "react";
-import { Redirect, Route } from "react-router-dom";
+import React, { useState } from "react";
+import { Redirect, Route, Switch } from "react-router-dom";
 import { IonApp } from "@ionic/react";
 import { IonReactRouter } from "@ionic/react-router";
-import styled from "styled-components";
-import Home from "./pages/Home";
 import "./index.css";
+import SelectInbox from "./pages/SelectInbox";
+import Page from "./pages";
+import CreateInbox from "./pages/CreateInbox";
 
-const AppName = styled.div`
-  padding-top: 20px;
-  padding-bottom: 20px;
-  font-size: 30px;
-  text-align: center;
-`;
+const App: React.FC = () => {
+  const [page, setPage] = useState<Page>("not found");
+  const [shouldEnter, setShouldEnter] = useState(true);
 
-const Outermost = styled.div`
-  display: flex;
-  justify-content: center;
-`;
+  const goTo = (page: Page) => () => {
+    setPage(page);
+    return null;
+  };
 
-const Outer = styled.div`
-  display: flex;
-  align-items: center;
-  flex-direction: column;
-  width: calc(100vw - 20px - 20px);
-  max-width: 600px;
-  min-height: calc(100vh - 32px);
-  @media (min-width: 600px) {
-    border-left: 1px solid rgba(0, 0, 0, 0.2);
-    border-right: 1px solid rgba(0, 0, 0, 0.2);
-  }
-  padding-left: 20px;
-  padding-right: 20px;
-  padding-bottom: 32px;
-`;
-
-const App: React.FC = () => (
-  <IonApp>
-    <IonReactRouter>
-      <Outermost>
-        <Outer>
-          <AppName>Parlance</AppName>
-          <Route exact path="/home" component={Home} />
-          <Route exact path="/" render={() => <Redirect to="/home" />} />
-        </Outer>
-      </Outermost>
-    </IonReactRouter>
-  </IonApp>
-);
+  return (
+    <IonApp>
+      <IonReactRouter>
+        <SelectInbox
+          page={page}
+          shouldEnter={shouldEnter}
+          setShouldEnter={setShouldEnter}
+        />
+        <CreateInbox
+          page={page}
+          shouldEnter={shouldEnter}
+          setShouldEnter={setShouldEnter}
+        />
+        <Switch>
+          <Route exact path="/select-inbox" component={goTo("select inbox")} />
+          <Route exact path="/create-inbox" component={goTo("create inbox")} />
+          <Route
+            exact
+            path="/"
+            render={() => <Redirect to="/select-inbox" />}
+          />
+          <Route component={goTo("not found")} />
+        </Switch>
+      </IonReactRouter>
+    </IonApp>
+  );
+};
 
 export default App;

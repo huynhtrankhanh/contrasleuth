@@ -2,14 +2,8 @@ import React from "react";
 import ReactDOM from "react-dom";
 import App from "./App";
 import * as serviceWorker from "./serviceWorker";
-import { createStore, applyMiddleware } from "redux";
-import createSagaMiddleware from "redux-saga";
-// import { reducer, saga } from "./store";
-import contract from "./store/contract";
-(window as any).contract = contract(() => {});
-
-// const sagaMiddleware = createSagaMiddleware();
-// const store = createStore(reducer, applyMiddleware(sagaMiddleware));
+import * as store from "./store";
+(window as any).store = store;
 
 ReactDOM.render(<App />, document.getElementById("root"));
 

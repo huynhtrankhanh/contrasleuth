@@ -1,7 +1,7 @@
 [package]
 authors = ["huynhtrankhanh"]
 edition = "2018"
-name = "parlance"
+name = "contrasleuth"
 version = "0.1.0"
 [build-dependencies]
 capnpc = "0.10.2"
