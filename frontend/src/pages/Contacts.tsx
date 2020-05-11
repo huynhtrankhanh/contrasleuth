@@ -4,37 +4,34 @@ import * as Theme from "../theme";
 import Page from "../pages";
 import { useHistory } from "react-router-dom";
 import { Localized } from "@fluent/react";
-import { inboxes, addInbox } from "../store";
+import { Link } from "react-router-dom";
+import { contacts } from "../store";
 import underDampedSpring from "../underDampedSpring";
 
-const InboxNameInput = ({
+const ContactSearchInput = ({
   children,
   inputRef,
-  inboxLabel,
-  setInboxLabel,
+  searchQuery,
+  setSearchQuery,
   controls,
 }: {
   children?: string;
   inputRef: React.MutableRefObject<HTMLInputElement | null>;
-  inboxLabel: string;
-  setInboxLabel: (value: string) => void;
+  searchQuery: string;
+  setSearchQuery: (value: string) => void;
   controls: AnimationControls;
 }) => (
   <Theme.Input
     placeholder={children}
     ref={inputRef}
-    value={inboxLabel}
-    onChange={(event) => setInboxLabel(event.target.value)}
+    value={searchQuery}
+    onChange={(event) => setSearchQuery(event.target.value)}
     initial={{ transform: "scale(1)" }}
     animate={controls}
   />
 );
 
-const SubmitInboxName = ({ children }: { children?: string }) => (
-  <Theme.Button as={motion.input} type="submit" value={children} />
-);
-
-const CreateInbox = ({
+const Contacts = ({
   page,
   shouldEnter,
   setShouldEnter,
@@ -45,18 +42,18 @@ const CreateInbox = ({
 }) => {
   const [visible, setVisible] = useState(false);
   const [flag, setFlag] = useState(false);
-  const [inboxLabel, setInboxLabel] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
   const controls = useAnimation();
   const inputControls = useAnimation();
   const inputRef = useRef<HTMLInputElement | null>(null);
   const history = useHistory();
 
   useEffect(() => {
-    if (page === "create inbox") {
+    if (page === "contacts") {
       if (!visible && shouldEnter) {
         setVisible(true);
         setShouldEnter(false);
-        setInboxLabel("");
+        setSearchQuery("");
       }
     } else {
       if (visible) {
@@ -96,7 +93,7 @@ const CreateInbox = ({
       initial={{ opacity: 0, transform: "scale(1.5)" }}
       animate={controls}
     >
-      <Localized id="create-inbox">
+      <Localized id="contacts">
         <Theme.Header layoutTransition={underDampedSpring} />
       </Localized>
       {flag && (
@@ -107,41 +104,33 @@ const CreateInbox = ({
             style={{ transform: "scale(0.5)" }}
             animate={{ transform: "scale(1)" }}
           >
-            <form
-              onSubmit={(event) => {
-                event.preventDefault();
-                if (inboxLabel.trim() === "") {
-                  inputControls
-                    .start({ transform: "scale(1.5)" })
-                    .then(() => inputControls.start({ transform: "scale(1)" }));
-                  if (inputRef.current !== null) {
-                    inputRef.current.focus();
-                  }
-                  return;
-                }
-
-                addInbox(inboxes, inboxLabel);
-
-                history.goBack();
-              }}
-            >
-              <Localized id="inbox-name">
-                <InboxNameInput
+            <Theme.Sticky>
+              <Localized id="search-contacts">
+                <ContactSearchInput
                   inputRef={inputRef}
-                  inboxLabel={inboxLabel}
-                  setInboxLabel={setInboxLabel}
+                  searchQuery={searchQuery}
+                  setSearchQuery={setSearchQuery}
                   controls={inputControls}
                 />
               </Localized>
               <Theme.Space />
-              <Localized id="create-inbox">
-                <SubmitInboxName />
+              <Link to="/add-contact">
+                <Localized id="add-contact">
+                  <Theme.Button />
+                </Localized>
+              </Link>
+              <Theme.Space />
+              <Localized id="go-back">
+                <Theme.Button onClick={() => history.goBack()} />
               </Localized>
-            </form>
+            </Theme.Sticky>
             <Theme.Space />
-            <Localized id="cancel">
-              <Theme.Button onClick={() => history.goBack()}></Theme.Button>
-            </Localized>
+            {[...contacts.values()].map((contact) => (
+              <React.Fragment key={contact.ephemeralLocalId}>
+                <Theme.Item>{contact.label}</Theme.Item>
+                <Theme.Space />
+              </React.Fragment>
+            ))}
           </motion.div>
         </>
       )}
@@ -149,4 +138,4 @@ const CreateInbox = ({
   );
 };
 
-export default CreateInbox;
+export default Contacts;
