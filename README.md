@@ -7,7 +7,7 @@
 
 # What does this thing do actually?
 
-When Contrasleuth on your Android device, the app tries to connect to other nearby devices to exchange messages. This way, you can send messages to other people without having to depend on internet connectivity.
+When Contrasleuth is installed on your Android device, the app tries to connect to other nearby devices to exchange messages. This way, you can send messages to other people without having to depend on internet connectivity.
 
 # This idea [isn't novel.](https://bitmessage.org/wiki/Main_Page) [At all.](https://scuttlebutt.nz/)
 
