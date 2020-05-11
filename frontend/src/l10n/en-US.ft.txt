@@ -1,0 +1,24 @@
+select-inbox = Select inbox
+create-inbox = Create inbox
+inbox-not-set-up = Newly created inbox
+inbox-notification-unread = {NUMBER($unreadCount)} unread {$unreadCount ->
+  [one] message
+  *[other] messages
+}
+inbox-notification-expired = Inbox expired
+inbox-notification-unread-expired = Inbox expired, {NUMBER($unreadCount)} unread messages
+inbox-name = Inbox name
+inbox-id = Inbox ID
+cancel = Cancel
+contacts = Contacts
+interpolated-inbox-name = Inbox name: {$inboxName}
+interpolated-inbox-id = Inbox ID: {$inboxId}
+inbox-expires-in = Inbox expires {$formattedRelativeTime}
+search-contacts = Search contacts
+go-back = Go back
+add-contact = Add contact
+next = Next
+invalid-inbox-id = Invalid inbox ID
+inbox-expired-or-does-not-exist = Inbox expired or doesn't exist
+contact-name = Contact name
+already-added-to-contacts = Already added to contacts

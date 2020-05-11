@@ -4,6 +4,8 @@ use crate::inventory::{
 use crate::private_box::{decrypt, encrypt};
 use async_std::sync::{channel, Receiver, Sender};
 use async_std::task;
+use crypto::blake2b::Blake2b;
+use crypto::digest::Digest;
 use rusqlite::{params, Connection};
 use sodiumoxide::crypto::box_;
 use sodiumoxide::crypto::secretbox;
@@ -352,17 +354,42 @@ pub enum Event {
 
 lazy_static! {
     static ref CALCULATE_PUBLIC_HALF_ID_DOMAIN: Vec<u8> = {
-        let domain = blake3::hash(b"CONTRASLEUTH CALCULATE PUBLIC HALF ID");
-        domain.as_bytes().to_vec()
+        let mut hasher = Blake2b::new(32);
+        hasher.input(b"CONTRASLEUTH CALCULATE PUBLIC HALF ID");
+        let mut result = [0u8; 32];
+        hasher.result(&mut result);
+        result.to_vec()
+    };
+}
+
+lazy_static! {
+    static ref OBFUSCATE_PUBLIC_HALF_DOMAIN: Vec<u8> = {
+        let mut hasher = Blake2b::new(32);
+        hasher.input(b"CONTRASLEUTH OBFUSCATE PUBLIC HALF");
+        let mut result = [0u8; 32];
+        hasher.result(&mut result);
+        result.to_vec()
+    };
+}
+
+lazy_static! {
+    static ref CALCULATE_MESSAGE_ID_DOMAIN: Vec<u8> = {
+        let mut hasher = Blake2b::new(32);
+        hasher.input(b"CONTRASLEUTH CALCULATE MESSAGE ID");
+        let mut result = [0u8; 32];
+        hasher.result(&mut result);
+        result.to_vec()
     };
 }
 
 fn calculate_public_half_id(public_encryption_key: &[u8], public_signing_key: &[u8]) -> Vec<u8> {
-    let mut hasher = blake3::Hasher::new();
-    hasher.update(&public_encryption_key);
-    hasher.update(&public_signing_key);
-    hasher.update(&CALCULATE_PUBLIC_HALF_ID_DOMAIN);
-    hasher.finalize().as_bytes().to_vec()
+    let mut hasher = Blake2b::new(32);
+    hasher.input(&public_encryption_key);
+    hasher.input(&public_signing_key);
+    hasher.input(&CALCULATE_PUBLIC_HALF_ID_DOMAIN);
+    let mut result = [0u8; 32];
+    hasher.result(&mut result);
+    result.to_vec()
 }
 
 /// This task is meant to be spawned. It executes blocking DB operations.
@@ -374,13 +401,6 @@ pub async fn derive(
     connection: Connection,
     event_tx: Sender<Event>,
 ) {
-    let obfuscate_public_half_domain = blake3::hash(b"CONTRASLEUTH OBFUSCATE PUBLIC HALF");
-    let obfuscate_public_half_domain = obfuscate_public_half_domain.as_bytes();
-    let obfuscate_public_half_domain = &obfuscate_public_half_domain[..];
-    let calculate_message_id_domain = blake3::hash(b"CONTRASLEUTH CALCULATE MESSAGE ID");
-    let calculate_message_id_domain = calculate_message_id_domain.as_bytes();
-    let calculate_message_id_domain = &calculate_message_id_domain[..];
-
     let init = |query| {
         connection.execute(query, params![]).unwrap();
     };
@@ -540,11 +560,11 @@ pub async fn derive(
     let derive_public_half_encryption_key = |first_ten_bytes: &[u8]| {
         assert_eq!(first_ten_bytes.len(), 10);
 
-        let mut hasher = blake3::Hasher::new();
-        hasher.update(first_ten_bytes);
-        hasher.update(&obfuscate_public_half_domain);
+        let mut hasher = Blake2b::new(secretbox::KEYBYTES);
+        hasher.input(first_ten_bytes);
+        hasher.input(&OBFUSCATE_PUBLIC_HALF_DOMAIN);
         let mut hash = [0; secretbox::KEYBYTES];
-        hasher.finalize_xof().fill(&mut hash);
+        hasher.result(&mut hash);
         secretbox::Key::from_slice(&hash).unwrap()
     };
 
@@ -737,10 +757,12 @@ pub async fn derive(
                         };
 
                         let global_id = {
-                            let mut hasher = blake3::Hasher::new();
-                            hasher.update(&plaintext);
-                            hasher.update(&calculate_message_id_domain);
-                            hasher.finalize().as_bytes().to_vec()
+                            let mut hasher = Blake2b::new(32);
+                            hasher.input(&plaintext);
+                            hasher.input(&CALCULATE_MESSAGE_ID_DOMAIN);
+                            let mut result = [0u8; 32];
+                            hasher.result(&mut result);
+                            result.to_vec()
                         };
 
                         {
@@ -1534,30 +1556,28 @@ mod tests {
                     // Consume expiration event
                     event_rx.recv().await;
 
-                    let assert_no_messages = || {
-                        async {
-                            let (drained1_tx, drained1_rx) = channel(1);
-                            let (stored_message_tx, stored_message_rx) = channel(1);
-                            let (drained2_tx, drained2_rx) = channel(1);
-                            let (drained3_tx, drained3_rx) = channel(1);
-                            request_state_dump(
-                                &command_tx,
-                                drained1_tx,
-                                stored_message_tx,
-                                drained2_tx,
-                                drained3_tx,
-                            )
-                            .await;
+                    let assert_no_messages = || async {
+                        let (drained1_tx, drained1_rx) = channel(1);
+                        let (stored_message_tx, stored_message_rx) = channel(1);
+                        let (drained2_tx, drained2_rx) = channel(1);
+                        let (drained3_tx, drained3_rx) = channel(1);
+                        request_state_dump(
+                            &command_tx,
+                            drained1_tx,
+                            stored_message_tx,
+                            drained2_tx,
+                            drained3_tx,
+                        )
+                        .await;
 
-                            while let Some(_) = drained1_rx.recv().await {}
+                        while let Some(_) = drained1_rx.recv().await {}
 
-                            if let Some(_) = stored_message_rx.recv().await {
-                                panic!();
-                            }
-
-                            while let Some(_) = drained2_rx.recv().await {}
-                            while let Some(_) = drained3_rx.recv().await {}
+                        if let Some(_) = stored_message_rx.recv().await {
+                            panic!();
                         }
+
+                        while let Some(_) = drained2_rx.recv().await {}
+                        while let Some(_) = drained3_rx.recv().await {}
                     };
 
                     let now = Utc::now().timestamp();

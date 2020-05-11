@@ -1,5 +1,6 @@
 import { observable, configure, action } from "mobx";
-import { getItem, setItem, removeItem, iterate } from "localforage";
+// https://github.com/ng-packagr/ng-packagr/issues/805#issuecomment-384932636
+import * as localforage from "localforage";
 import { StoredMessage } from "./rpc-schema";
 import contract from "./contract";
 import uuid from "uuid/v4";
@@ -98,7 +99,7 @@ const methods = (() => {
       const { operation_id, associated_frontend_data } = operation;
       const validated = (() => {
         const parsed = JSON.parse(associated_frontend_data);
-        if (AssociatedFrontendData(parsed)) {
+        if (!AssociatedFrontendData(parsed)) {
           console.log(new Error("This should be unreachable."));
           return;
         }
@@ -212,6 +213,7 @@ const methods = (() => {
       publicHalf: PublicHalf
     ) => {
       const syntheticId = synthesizeId(globalId);
+
       inboxes.set(syntheticId, {
         globalId,
         label: name,
@@ -221,6 +223,8 @@ const methods = (() => {
         expirationTime: undefined,
         publicHalf,
         pendingOperations: new Map(),
+        unreadCount: 0,
+        setUp: false,
       });
 
       const inbox = inboxes.get(syntheticId);
@@ -228,6 +232,16 @@ const methods = (() => {
         console.log(new Error("This should be unreachable."));
         return;
       }
+
+      testPredicate(synthesizeSetUpPredicate(globalId)).then(
+        action((setUp) => {
+          if (setUp === undefined) {
+            console.log(new Error("This should be unreachable."));
+            return;
+          }
+          inbox.setUp = setUp;
+        })
+      );
 
       operations.then(
         action((operations) => {
@@ -328,6 +342,10 @@ const methods = (() => {
           hidden,
           read,
         });
+
+        if (!read) {
+          inbox.unreadCount++;
+        }
       })
     );
 
@@ -361,6 +379,10 @@ const methods = (() => {
     if (message === undefined) {
       console.log(new Error("This should be unreachable."));
       return;
+    }
+
+    if (!message.read) {
+      inbox.unreadCount--;
     }
 
     if (message.inReplyTo !== undefined) {
@@ -484,6 +506,8 @@ export type Inbox = {
   expirationTime: number | undefined;
   publicHalf: PublicHalf;
   pendingOperations: Map<string, OperationStatus>;
+  unreadCount: number;
+  setUp: boolean;
 };
 
 type Predicate = string & { __predicate: boolean };
@@ -492,19 +516,22 @@ const synthesizeReadPredicate = (inboxId: number[], messageId: number[]) =>
   JSON.stringify([inboxId, messageId, "read"]) as Predicate;
 const synthesizeHiddenPredicate = (inboxId: number[], messageId: number[]) =>
   JSON.stringify([inboxId, messageId, "hidden"]) as Predicate;
+const synthesizeSetUpPredicate = (inboxId: number[]) =>
+  JSON.stringify([inboxId, "setup"]) as Predicate;
 
 const testPredicate = (predicate: Predicate) =>
-  getItem(predicate)
+  localforage
+    .getItem(predicate)
     .then((value) => value !== null)
     .catch((error) => {
       console.log(error, new Error("This should be unreachable."));
     });
 const setPredicate = (predicate: Predicate) =>
-  void setItem(predicate, "").catch((error) => {
+  void localforage.setItem(predicate, "").catch((error) => {
     console.log(error, new Error("This should be unreachable."));
   });
 const clearPredicate = (predicate: Predicate) =>
-  void removeItem(predicate).catch((error) => {
+  void localforage.removeItem(predicate).catch((error) => {
     console.log(error, new Error("This should be unreachable."));
   });
 
@@ -514,6 +541,10 @@ export const markMessageAsRead = action((inbox: Inbox, messageId: number[]) => {
   if (message === undefined) {
     console.log(new Error("This should be unreachable."));
     return;
+  }
+
+  if (!message.read) {
+    inbox.unreadCount--;
   }
 
   message.read = true;
@@ -592,11 +623,18 @@ export const addInbox = action(
               createdInbox.CreatedInbox.public_half.public_signing_key,
           },
           pendingOperations: new Map(),
+          unreadCount: 0,
+          setUp: false,
         });
       })
     );
   }
 );
+
+export const markInboxAsSetUp = action((inbox: Inbox) => {
+  inbox.setUp = true;
+  setPredicate(synthesizeSetUpPredicate(inbox.globalId));
+});
 
 export const publishPublicHalfEntry = (inbox: Inbox) => {
   const sevenDaysFromNow = Math.trunc(Date.now() / 1000 + 86400 * 7);
@@ -608,34 +646,36 @@ export const publishPublicHalfEntry = (inbox: Inbox) => {
     },
   };
 
-  methods.getPublicHalfEntry(inbox.globalId).then((entry) => {
-    const [promise, operationId] = methods.insertMessage(
-      entry.PublicHalfEntry,
-      sevenDaysFromNow,
-      JSON.stringify(associatedFrontendData)
-    );
+  methods.getPublicHalfEntry(inbox.globalId).then(
+    action((entry) => {
+      const [promise, operationId] = methods.insertMessage(
+        entry.PublicHalfEntry,
+        sevenDaysFromNow,
+        JSON.stringify(associatedFrontendData)
+      );
 
-    inbox.pendingOperations.set(operationId, {
-      description: { type: "announce inbox" },
-      status: "pending",
-    });
+      inbox.pendingOperations.set(operationId, {
+        description: { type: "announce inbox" },
+        status: "pending",
+      });
 
-    promise.then(
-      action((outcome) => {
-        if (outcome === "completed") {
-          const operationStatus = inbox.pendingOperations.get(operationId);
-          if (operationStatus === undefined) {
-            console.log(new Error("This should be unreachable."));
-            return;
+      promise.then(
+        action((outcome) => {
+          if (outcome === "completed") {
+            const operationStatus = inbox.pendingOperations.get(operationId);
+            if (operationStatus === undefined) {
+              console.log(new Error("This should be unreachable."));
+              return;
+            }
+
+            operationStatus.status = "completed";
+          } else {
+            inbox.pendingOperations.delete(operationId);
           }
-
-          operationStatus.status = "completed";
-        } else {
-          inbox.pendingOperations.delete(operationId);
-        }
-      })
-    );
-  });
+        })
+      );
+    })
+  );
 };
 
 export const renameInbox = action((inbox: Inbox, name: string) => {
@@ -648,12 +688,12 @@ export const deleteInbox = action(
     const syntheticId = synthesizeId(inbox.globalId);
     inboxes.delete(syntheticId);
     methods.deleteInbox(inbox.globalId);
-    iterate((_, key) => {
+    localforage.iterate((_, key) => {
       const syntheticPredicateInboxId = synthesizeId(
         JSON.parse(key)[0] as number[]
       );
       if (syntheticId === syntheticPredicateInboxId) {
-        removeItem(key).catch((error) => {
+        localforage.removeItem(key).catch((error) => {
           console.log(error, new Error("This should be unreachable."));
         });
       }
