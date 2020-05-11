@@ -11,7 +11,6 @@ inbox-name = Inbox name
 inbox-id = Inbox ID
 cancel = Cancel
 contacts = Contacts
-interpolated-inbox-name = Inbox name: {$inboxName}
 interpolated-inbox-id = Inbox ID: {$inboxId}
 inbox-expires-in = Inbox expires {$formattedRelativeTime}
 search-contacts = Search contacts
