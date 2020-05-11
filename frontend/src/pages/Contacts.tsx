@@ -7,6 +7,7 @@ import { Localized } from "@fluent/react";
 import { Link } from "react-router-dom";
 import { contacts } from "../store";
 import underDampedSpring from "../underDampedSpring";
+import base32 from "hi-base32";
 
 const ContactSearchInput = ({
   children,
@@ -127,7 +128,17 @@ const Contacts = ({
             <Theme.Space />
             {[...contacts.values()].map((contact) => (
               <React.Fragment key={contact.ephemeralLocalId}>
-                <Theme.Item>{contact.label}</Theme.Item>
+                <Theme.Item>
+                  <div>{contact.label}</div>
+                  <Localized
+                    id="interpolated-inbox-id"
+                    vars={{
+                      inboxId: base32.encode(contact.globalId.slice(0, 10)),
+                    }}
+                  >
+                    <div />
+                  </Localized>
+                </Theme.Item>
                 <Theme.Space />
               </React.Fragment>
             ))}

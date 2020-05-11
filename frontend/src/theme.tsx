@@ -49,11 +49,13 @@ export const Item = styled(motion.button)`
   border-radius: 7px;
   background: #b71c1c;
   width: calc(100vw - 2 * 40px);
-  padding-left: 20px;
-  padding-right: 20px;
+  padding: 20px;
   max-width: 500px;
+  div:nth-child(2) {
+    font-size: 14px;
+    opacity: 0.8;
+  }
   font-size: 18px;
-  line-height: 40px;
   text-overflow: ellipsis;
   overflow: hidden;
   &.no-top-rounded-corners {

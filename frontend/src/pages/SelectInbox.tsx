@@ -7,6 +7,7 @@ import { inboxes, synthesizeId } from "../store";
 import { observer } from "mobx-react";
 import { Localized } from "@fluent/react";
 import underDampedSpring from "../underDampedSpring";
+import base32 from "hi-base32";
 
 const useTimestamp = () => {
   const [timestamp, setTimestamp] = useState(Math.trunc(Date.now() / 1000));
@@ -116,7 +117,15 @@ const SelectInbox = observer(
                         layoutTransition={underDampedSpring}
                         className="no-top-rounded-corners"
                       >
-                        {inbox.label}
+                        <div>{inbox.label}</div>
+                        <Localized
+                          id="interpolated-inbox-id"
+                          vars={{
+                            inboxId: base32.encode(inbox.globalId.slice(0, 10)),
+                          }}
+                        >
+                          <div />
+                        </Localized>
                       </Theme.Item>
                     </React.Fragment>
                   );
@@ -138,7 +147,15 @@ const SelectInbox = observer(
                         layoutTransition={underDampedSpring}
                         className="no-top-rounded-corners"
                       >
-                        {inbox.label}
+                        <div>{inbox.label}</div>
+                        <Localized
+                          id="interpolated-inbox-id"
+                          vars={{
+                            inboxId: base32.encode(inbox.globalId.slice(0, 10)),
+                          }}
+                        >
+                          <div />
+                        </Localized>
                       </Theme.Item>
                     </React.Fragment>
                   );
@@ -160,7 +177,15 @@ const SelectInbox = observer(
                         layoutTransition={underDampedSpring}
                         className="no-top-rounded-corners"
                       >
-                        {inbox.label}
+                        <div>{inbox.label}</div>
+                        <Localized
+                          id="interpolated-inbox-id"
+                          vars={{
+                            inboxId: base32.encode(inbox.globalId.slice(0, 10)),
+                          }}
+                        >
+                          <div />
+                        </Localized>
                       </Theme.Item>
                     </React.Fragment>
                   );
@@ -179,7 +204,15 @@ const SelectInbox = observer(
                         layoutTransition={underDampedSpring}
                         className="no-top-rounded-corners"
                       >
-                        {inbox.label}
+                        <div>{inbox.label}</div>
+                        <Localized
+                          id="interpolated-inbox-id"
+                          vars={{
+                            inboxId: base32.encode(inbox.globalId.slice(0, 10)),
+                          }}
+                        >
+                          <div />
+                        </Localized>
                       </Theme.Item>
                     </React.Fragment>
                   );
@@ -189,7 +222,15 @@ const SelectInbox = observer(
                   <React.Fragment key={synthesizeId(inbox.globalId)}>
                     <Theme.Space layoutTransition={underDampedSpring} />
                     <Theme.Item layoutTransition={underDampedSpring}>
-                      {inbox.label}
+                      <div>{inbox.label}</div>
+                      <Localized
+                        id="interpolated-inbox-id"
+                        vars={{
+                          inboxId: base32.encode(inbox.globalId.slice(0, 10)),
+                        }}
+                      >
+                        <div />
+                      </Localized>
                     </Theme.Item>
                   </React.Fragment>
                 );
