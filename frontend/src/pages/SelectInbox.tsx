@@ -7,19 +7,8 @@ import { inboxes, synthesizeId } from "../store";
 import { observer } from "mobx-react";
 import { Localized } from "@fluent/react";
 import underDampedSpring from "../underDampedSpring";
+import InboxCard from "../components/InboxCard";
 import base32 from "hi-base32";
-
-const useTimestamp = () => {
-  const [timestamp, setTimestamp] = useState(Math.trunc(Date.now() / 1000));
-  useEffect(() => {
-    const interval = setInterval(
-      () => setTimestamp(Math.trunc(Date.now() / 1000)),
-      1000
-    );
-    return () => clearInterval(interval);
-  }, []);
-  return timestamp;
-};
 
 const SelectInbox = observer(
   ({
@@ -67,8 +56,6 @@ const SelectInbox = observer(
       // eslint-disable-next-line
     }, [visible]);
 
-    const now = useTimestamp();
-
     if (!visible) return null;
     return (
       <Theme.NeatBackground
@@ -97,144 +84,14 @@ const SelectInbox = observer(
                   <Theme.Button layoutTransition={underDampedSpring} />
                 </Localized>
               </Link>
-              {[...inboxes.values()].map((inbox) => {
-                const unread = inbox.unreadCount > 0;
-                const expired =
-                  inbox.expirationTime === undefined ||
-                  inbox.expirationTime <= now;
-                const newlyCreated = !inbox.setUp;
-
-                if (newlyCreated) {
-                  return (
-                    <React.Fragment key={synthesizeId(inbox.globalId)}>
-                      <Theme.Space layoutTransition={underDampedSpring} />
-                      <Localized id="inbox-not-set-up">
-                        <Theme.InboxNotifications
-                          layoutTransition={underDampedSpring}
-                        />
-                      </Localized>
-                      <Theme.Item
-                        layoutTransition={underDampedSpring}
-                        className="no-top-rounded-corners"
-                      >
-                        <div>{inbox.label}</div>
-                        <Localized
-                          id="interpolated-inbox-id"
-                          vars={{
-                            inboxId: base32.encode(inbox.globalId.slice(0, 10)),
-                          }}
-                        >
-                          <div />
-                        </Localized>
-                      </Theme.Item>
-                    </React.Fragment>
-                  );
-                }
-
-                if (unread && expired) {
-                  return (
-                    <React.Fragment key={synthesizeId(inbox.globalId)}>
-                      <Theme.Space layoutTransition={underDampedSpring} />
-                      <Localized
-                        id="inbox-notification-unread"
-                        vars={{ unreadCount: inbox.unreadCount }}
-                      >
-                        <Theme.InboxNotifications
-                          layoutTransition={underDampedSpring}
-                        />
-                      </Localized>
-                      <Theme.Item
-                        layoutTransition={underDampedSpring}
-                        className="no-top-rounded-corners"
-                      >
-                        <div>{inbox.label}</div>
-                        <Localized
-                          id="interpolated-inbox-id"
-                          vars={{
-                            inboxId: base32.encode(inbox.globalId.slice(0, 10)),
-                          }}
-                        >
-                          <div />
-                        </Localized>
-                      </Theme.Item>
-                    </React.Fragment>
-                  );
-                }
-
-                if (unread) {
-                  return (
-                    <React.Fragment key={synthesizeId(inbox.globalId)}>
-                      <Theme.Space layoutTransition={underDampedSpring} />
-                      <Localized
-                        id="inbox-notification-unread"
-                        vars={{ unreadCount: inbox.unreadCount }}
-                      >
-                        <Theme.InboxNotifications
-                          layoutTransition={underDampedSpring}
-                        />
-                      </Localized>
-                      <Theme.Item
-                        layoutTransition={underDampedSpring}
-                        className="no-top-rounded-corners"
-                      >
-                        <div>{inbox.label}</div>
-                        <Localized
-                          id="interpolated-inbox-id"
-                          vars={{
-                            inboxId: base32.encode(inbox.globalId.slice(0, 10)),
-                          }}
-                        >
-                          <div />
-                        </Localized>
-                      </Theme.Item>
-                    </React.Fragment>
-                  );
-                }
-
-                if (expired) {
-                  return (
-                    <React.Fragment key={synthesizeId(inbox.globalId)}>
-                      <Theme.Space layoutTransition={underDampedSpring} />
-                      <Localized id="inbox-notification-expired">
-                        <Theme.InboxNotifications
-                          layoutTransition={underDampedSpring}
-                        />
-                      </Localized>
-                      <Theme.Item
-                        layoutTransition={underDampedSpring}
-                        className="no-top-rounded-corners"
-                      >
-                        <div>{inbox.label}</div>
-                        <Localized
-                          id="interpolated-inbox-id"
-                          vars={{
-                            inboxId: base32.encode(inbox.globalId.slice(0, 10)),
-                          }}
-                        >
-                          <div />
-                        </Localized>
-                      </Theme.Item>
-                    </React.Fragment>
-                  );
-                }
-
-                return (
-                  <React.Fragment key={synthesizeId(inbox.globalId)}>
-                    <Theme.Space layoutTransition={underDampedSpring} />
-                    <Theme.Item layoutTransition={underDampedSpring}>
-                      <div>{inbox.label}</div>
-                      <Localized
-                        id="interpolated-inbox-id"
-                        vars={{
-                          inboxId: base32.encode(inbox.globalId.slice(0, 10)),
-                        }}
-                      >
-                        <div />
-                      </Localized>
-                    </Theme.Item>
-                  </React.Fragment>
-                );
-              })}
+              {[...inboxes.values()].map((inbox) => (
+                <React.Fragment key={synthesizeId(inbox.globalId)}>
+                  <Theme.Space layoutTransition={underDampedSpring} />
+                  <Link to={"/inbox/" + base32.encode(inbox.globalId)}>
+                    <InboxCard inbox={inbox} displayInboxNotifications />
+                  </Link>
+                </React.Fragment>
+              ))}
             </motion.div>
           </>
         )}

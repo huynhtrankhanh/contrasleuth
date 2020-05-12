@@ -3,5 +3,7 @@ type Page =
   | "select inbox"
   | "create inbox"
   | "contacts"
-  | "add contact";
+  | "add contact"
+  | "setup"
+  | "inbox";
 export default Page;
