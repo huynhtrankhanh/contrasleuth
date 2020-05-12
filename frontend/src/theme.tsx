@@ -64,6 +64,41 @@ export const Item = styled(motion.button)`
   }
 `;
 
+export const ItemWithDetails = styled(motion.button)`
+  appearance: none;
+  vertical-align: middle;
+  color: inherit;
+  font: inherit;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  margin: 0;
+  outline: 0;
+  border-radius: 0;
+  text-align: inherit;
+  box-sizing: content-box;
+  cursor: pointer;
+
+  display: block;
+  border-radius: 7px;
+  background: #b71c1c;
+  width: calc(100vw - 2 * 40px);
+  padding: 20px;
+  max-width: 500px;
+  div:nth-child(2) {
+    margin-top: 6px;
+    font-style: italic;
+    opacity: 0.8;
+  }
+  font-size: 18px;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  &.no-top-rounded-corners {
+    border-top-left-radius: 0px;
+    border-top-right-radius: 0px;
+  }
+`;
+
 export const Button = styled(motion.button)`
   appearance: none;
   vertical-align: middle;
@@ -88,6 +123,12 @@ export const Button = styled(motion.button)`
   max-width: 500px;
   border: 1px solid white;
   line-height: 40px;
+  font-size: 18px;
+`;
+
+export const Text = styled(motion.div)`
+  width: calc(100vw - 2 * 20px);
+  max-width: 540px;
   font-size: 18px;
 `;
 

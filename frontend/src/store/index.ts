@@ -631,6 +631,13 @@ export const addInbox = action(
   }
 );
 
+export const setAutosavePreference = action(
+  (inbox: Inbox, autosavePreference: "autosave" | "manual") => {
+    inbox.autosavePreference = autosavePreference;
+    methods.setAutosavePreference(inbox.globalId, autosavePreference);
+  }
+);
+
 export const markInboxAsSetUp = action((inbox: Inbox) => {
   inbox.setUp = true;
   setPredicate(synthesizeSetUpPredicate(inbox.globalId));
@@ -728,10 +735,18 @@ export const addContact = action(
 
 export const setContactPublicHalf = action(
   (
+    contacts: Map<SyntheticContactId, Contact>,
     contact: Contact,
     publicEncryptionKey: number[],
     publicSigningKey: number[]
   ) => {
+    const syntheticId = synthesizeContactId(
+      contact.publicEncryptionKey,
+      contact.publicSigningKey
+    );
+
+    contacts.delete(syntheticId);
+
     methods
       .setPublicHalf(contact.globalId, publicEncryptionKey, publicSigningKey)
       .then(
@@ -739,6 +754,13 @@ export const setContactPublicHalf = action(
           contact.globalId = globalId;
           contact.publicEncryptionKey = publicEncryptionKey;
           contact.publicSigningKey = publicSigningKey;
+
+          const syntheticId = synthesizeContactId(
+            contact.publicEncryptionKey,
+            contact.publicSigningKey
+          );
+
+          contacts.set(syntheticId, contact);
         })
       );
   }

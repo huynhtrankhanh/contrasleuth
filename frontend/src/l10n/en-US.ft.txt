@@ -6,7 +6,12 @@ inbox-notification-unread = {NUMBER($unreadCount)} unread {$unreadCount ->
   *[other] messages
 }
 inbox-notification-expired = Inbox expired
-inbox-notification-unread-expired = Inbox expired, {NUMBER($unreadCount)} unread messages
+inbox-notification-pending = Pending tasks
+inbox-notification-unread-expired = {inbox-notification-expired}, {inbox-notification-unread}
+inbox-notification-pending-unread = {inbox-notification-pending}, {inbox-notification-unread}
+inbox-notification-pending-expired = {inbox-notification-pending}, {inbox-notification-expired}
+inbox-notification-pending-unread-expired = {inbox-notification-pending}, {inbox-notification-unread-expired}
+inbox-renewal-in-progress = Inbox renewal in progress
 inbox-name = Inbox name
 inbox-id = Inbox ID
 cancel = Cancel
@@ -21,3 +26,11 @@ invalid-inbox-id = Invalid inbox ID
 inbox-expired-or-does-not-exist = Inbox expired or doesn't exist
 contact-name = Contact name
 already-added-to-contacts = Already added to contacts
+set-up-inbox = Set up
+expires-after-7-days = This inbox expires after 7 days. You can renew an inbox at any time.
+message-retention = Messages are retained for a set period of time by default. Review the below setting before creating this inbox.
+save-messages-manually = Save messages automatically: Off
+save-messages-manually-explanation = Messages must be manually saved. Unsaved messages are rendered inaccessible when purged from the network.
+save-messages-automatically = Save messages automatically: On
+save-messages-automatically-explanation = Messages are saved automatically as they arrive.
+done = I am done
