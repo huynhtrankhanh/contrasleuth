@@ -12,6 +12,7 @@ inbox-notification-pending-unread = {inbox-notification-pending}, {inbox-notific
 inbox-notification-pending-expired = {inbox-notification-pending}, {inbox-notification-expired}
 inbox-notification-pending-unread-expired = {inbox-notification-pending}, {inbox-notification-unread-expired}
 inbox-renewal-in-progress = Inbox renewal in progress
+inbox-setup-in-progress = Inbox setup in progress
 inbox-name = Inbox name
 inbox-id = Inbox ID
 cancel = Cancel

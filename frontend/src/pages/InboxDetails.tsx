@@ -7,34 +7,30 @@ import { Localized } from "@fluent/react";
 import { inboxes, addInbox } from "../store";
 import underDampedSpring from "../underDampedSpring";
 
-const InboxNameInput = ({
+const MessageSearchInput = ({
   children,
   inputRef,
   inboxLabel,
-  setInboxLabel,
+  setSearchQuery,
   controls,
 }: {
   children?: string;
   inputRef: React.MutableRefObject<HTMLInputElement | null>;
   inboxLabel: string;
-  setInboxLabel: (value: string) => void;
+  setSearchQuery: (value: string) => void;
   controls: AnimationControls;
 }) => (
   <Theme.Input
     placeholder={children}
     ref={inputRef}
     value={inboxLabel}
-    onChange={(event) => setInboxLabel(event.target.value)}
+    onChange={(event) => setSearchQuery(event.target.value)}
     initial={{ transform: "scale(1)" }}
     animate={controls}
   />
 );
 
-const SubmitInboxName = ({ children }: { children?: string }) => (
-  <Theme.Button as={motion.input} type="submit" value={children} />
-);
-
-const CreateInbox = ({
+const InboxDetails = ({
   page,
   shouldEnter,
   setShouldEnter,
@@ -45,7 +41,7 @@ const CreateInbox = ({
 }) => {
   const [visible, setVisible] = useState(false);
   const [flag, setFlag] = useState(false);
-  const [inboxLabel, setInboxLabel] = useState("");
+  const [inboxLabel, setSearchQuery] = useState("");
   const controls = useAnimation();
   const inputControls = useAnimation();
   const inputRef = useRef<HTMLInputElement | null>(null);
@@ -56,7 +52,7 @@ const CreateInbox = ({
       if (!visible && shouldEnter) {
         setVisible(true);
         setShouldEnter(false);
-        setInboxLabel("");
+        setSearchQuery("");
       }
     } else {
       if (visible) {
@@ -107,37 +103,14 @@ const CreateInbox = ({
             style={{ transform: "scale(0.5)" }}
             animate={{ transform: "scale(1)" }}
           >
-            <form
-              onSubmit={(event) => {
-                event.preventDefault();
-                if (inboxLabel.trim() === "") {
-                  inputControls
-                    .start({ transform: "scale(1.5)" })
-                    .then(() => inputControls.start({ transform: "scale(1)" }));
-                  if (inputRef.current !== null) {
-                    inputRef.current.focus();
-                  }
-                  return;
-                }
-
-                addInbox(inboxes, inboxLabel);
-
-                history.goBack();
-              }}
-            >
-              <Localized id="inbox-name">
-                <InboxNameInput
-                  inputRef={inputRef}
-                  inboxLabel={inboxLabel}
-                  setInboxLabel={setInboxLabel}
-                  controls={inputControls}
-                />
-              </Localized>
-              <Theme.Space />
-              <Localized id="create-inbox">
-                <SubmitInboxName />
-              </Localized>
-            </form>
+            <Localized id="inbox-name">
+              <MessageSearchInput
+                inputRef={inputRef}
+                inboxLabel={inboxLabel}
+                setSearchQuery={setSearchQuery}
+                controls={inputControls}
+              />
+            </Localized>
             <Theme.Space />
             <Localized id="cancel">
               <Theme.Button onClick={() => history.goBack()}></Theme.Button>
@@ -149,4 +122,4 @@ const CreateInbox = ({
   );
 };
 
-export default CreateInbox;
+export default InboxDetails;
