@@ -40,7 +40,10 @@ const InboxCard = observer(
       ).length > 0;
     const inboxRenewalInProgress = [...inbox.pendingOperations.values()]
       .filter((operation) => operation.status === "pending")
-      .some((operation) => operation.description.type === "announce inbox");
+      .some((operation) => operation.description.type === "renew inbox");
+    const inboxSetupInProgress = [...inbox.pendingOperations.values()]
+      .filter((operation) => operation.status === "pending")
+      .some((operation) => operation.description.type === "setup inbox");
 
     const displayTopRoundedCorners =
       !displayInboxNotifications || (!unread && !expired && !newlyCreated);
@@ -50,6 +53,10 @@ const InboxCard = observer(
         {displayInboxNotifications &&
           (newlyCreated ? (
             <Localized id="inbox-not-set-up">
+              <Theme.InboxNotifications layoutTransition={underDampedSpring} />
+            </Localized>
+          ) : inboxSetupInProgress ? (
+            <Localized id="inbox-setup-in-progress">
               <Theme.InboxNotifications layoutTransition={underDampedSpring} />
             </Localized>
           ) : inboxRenewalInProgress ? (

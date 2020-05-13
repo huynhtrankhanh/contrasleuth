@@ -118,6 +118,10 @@ const SetUpInbox = observer(
             >
               <InboxCard inbox={inbox} displayInboxNotifications={false} />
               <Theme.Space layoutTransition={underDampedSpring} />
+              <Localized id="go-back">
+                <Theme.Button onClick={() => history.goBack()} />
+              </Localized>
+              <Theme.Space layoutTransition={underDampedSpring} />
               <Localized id="expires-after-7-days">
                 <Theme.Text layoutTransition={underDampedSpring} />
               </Localized>
@@ -145,7 +149,7 @@ const SetUpInbox = observer(
               <Localized id="done">
                 <Theme.Button
                   onClick={() => {
-                    publishPublicHalfEntry(inbox);
+                    publishPublicHalfEntry(inbox, "setup inbox");
                     markInboxAsSetUp(inbox);
                     history.push("/inbox/" + base32.encode(inbox.globalId));
                   }}

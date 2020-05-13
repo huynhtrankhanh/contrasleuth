@@ -465,7 +465,10 @@ export type RecipientDescription =
 
 export const OperationDescription = t.union([
   t.struct({
-    type: t.refinement(t.String, (string) => string === "announce inbox"),
+    type: t.refinement(t.String, (string) => string === "renew inbox"),
+  }),
+  t.struct({
+    type: t.refinement(t.String, (string) => string === "setup inbox"),
   }),
   t.struct({
     type: t.refinement(t.String, (string) => string === "send message"),
@@ -475,7 +478,10 @@ export const OperationDescription = t.union([
 
 export type OperationDescription =
   | {
-      type: "announce inbox";
+      type: "renew inbox";
+    }
+  | {
+      type: "setup inbox";
     }
   | {
       type: "send message";
@@ -643,13 +649,16 @@ export const markInboxAsSetUp = action((inbox: Inbox) => {
   setPredicate(synthesizeSetUpPredicate(inbox.globalId));
 });
 
-export const publishPublicHalfEntry = (inbox: Inbox) => {
+export const publishPublicHalfEntry = (
+  inbox: Inbox,
+  setupOrRenew: "renew inbox" | "setup inbox"
+) => {
   const sevenDaysFromNow = Math.trunc(Date.now() / 1000 + 86400 * 7);
 
   const associatedFrontendData: AssociatedFrontendData = {
     inboxId: inbox.globalId,
     description: {
-      type: "announce inbox",
+      type: setupOrRenew,
     },
   };
 
@@ -662,7 +671,7 @@ export const publishPublicHalfEntry = (inbox: Inbox) => {
       );
 
       inbox.pendingOperations.set(operationId, {
-        description: { type: "announce inbox" },
+        description: { type: "renew inbox" },
         status: "pending",
       });
 
