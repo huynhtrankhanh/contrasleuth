@@ -41,7 +41,7 @@ const Submit = ({ children }: { children?: string }) => (
   />
 );
 
-const CreateInbox = ({
+const AddContact = ({
   page,
   shouldEnter,
   setShouldEnter,
@@ -136,23 +136,38 @@ const CreateInbox = ({
       {validationError === "inbox doesn't exist" ? (
         <>
           <Theme.Space layoutTransition={underDampedSpring} />
-          <Localized id="inbox-expired-or-does-not-exist">
-            <Theme.Header layoutTransition={underDampedSpring} />
-          </Localized>
+          <Theme.ItemWithDetails>
+            <Localized id="inbox-not-found">
+              <div />
+            </Localized>
+            <Localized id="inbox-not-found-explanation">
+              <div />
+            </Localized>
+          </Theme.ItemWithDetails>
         </>
       ) : validationError === "invalid inbox id" ? (
         <>
           <Theme.Space layoutTransition={underDampedSpring} />
-          <Localized id="invalid-inbox-id">
-            <Theme.Header layoutTransition={underDampedSpring} />
-          </Localized>
+          <Theme.ItemWithDetails>
+            <Localized id="invalid-inbox-id">
+              <div />
+            </Localized>
+            <Localized id="invalid-inbox-id-explanation">
+              <div />
+            </Localized>
+          </Theme.ItemWithDetails>
         </>
       ) : validationError === "already added" ? (
         <>
           <Theme.Space layoutTransition={underDampedSpring} />
-          <Localized id="already-added-to-contacts">
-            <Theme.Header layoutTransition={underDampedSpring} />
-          </Localized>
+          <Theme.ItemWithDetails>
+            <Localized id="already-added-to-contacts">
+              <div />
+            </Localized>
+            <Localized id="already-added-to-contacts-explanation">
+              <div />
+            </Localized>
+          </Theme.ItemWithDetails>
         </>
       ) : null}
 
@@ -310,4 +325,4 @@ const CreateInbox = ({
   );
 };
 
-export default CreateInbox;
+export default AddContact;

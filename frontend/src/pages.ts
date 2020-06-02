@@ -5,5 +5,6 @@ type Page =
   | "contacts"
   | "add contact"
   | "setup"
-  | "inbox";
+  | "inbox"
+  | "inbox settings";
 export default Page;
