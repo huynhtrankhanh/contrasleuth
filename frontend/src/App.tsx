@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { withRouter, Redirect, Route, Switch } from "react-router-dom";
 import { IonApp } from "@ionic/react";
 import { IonReactRouter } from "@ionic/react-router";
@@ -9,6 +9,9 @@ import CreateInbox from "./pages/CreateInbox";
 import Contacts from "./pages/Contacts";
 import AddContact from "./pages/AddContact";
 import SetUpInbox from "./pages/SetUpInbox";
+import InboxDetails from "./pages/InboxDetails";
+import InboxSettings from "./pages/InboxSettings";
+import InboxDoesNotExist from "./pages/InboxDoesNotExist";
 import { observer } from "mobx-react";
 import { inboxes, Inbox, synthesizeId } from "./store";
 import base32 from "hi-base32";
@@ -19,26 +22,43 @@ const App = withRouter(
     const [shouldEnter, setShouldEnter] = useState(true);
     const [inbox, setInbox] = useState<Inbox | null>(null);
 
+    useEffect(() => {
+      if (
+        page !== "inbox" &&
+        page !== "setup" &&
+        page !== "inbox settings" &&
+        shouldEnter
+      ) {
+        setInbox(null);
+      }
+    }, [shouldEnter, page]);
+
     const goTo = (page: Page) => () => {
       setPage(page);
-      setInbox(null);
       return null;
     };
 
     const goToInbox = (inbox: Inbox) => () => {
-      setPage("inbox");
       setInbox(inbox);
+      setPage("inbox");
       return null;
     };
 
     const goToSetup = (inbox: Inbox) => () => {
-      setPage("setup");
       setInbox(inbox);
+      setPage("setup");
+      return null;
+    };
+
+    const goToSettings = (inbox: Inbox) => () => {
+      setInbox(inbox);
+      setPage("inbox settings");
       return null;
     };
 
     return (
       <>
+        {page === "not found" && shouldEnter && <InboxDoesNotExist />}
         <SelectInbox
           page={page}
           shouldEnter={shouldEnter}
@@ -65,6 +85,18 @@ const App = withRouter(
           setShouldEnter={setShouldEnter}
           inbox={inbox}
         />
+        <InboxDetails
+          page={page}
+          shouldEnter={shouldEnter}
+          setShouldEnter={setShouldEnter}
+          inbox={inbox}
+        />
+        <InboxSettings
+          page={page}
+          shouldEnter={shouldEnter}
+          setShouldEnter={setShouldEnter}
+          inbox={inbox}
+        />
         <Switch>
           <Route exact path="/select-inbox" component={goTo("select inbox")} />
           <Route exact path="/create-inbox" component={goTo("create inbox")} />
@@ -75,7 +107,6 @@ const App = withRouter(
             path="/"
             render={() => <Redirect to="/select-inbox" />}
           />
-          <Route exact path="/setup" component={goTo("setup")} />
           {[...inboxes.values()].map((inbox) => {
             const base32EncodedId = base32.encode(inbox.globalId);
             const syntheticId = synthesizeId(inbox.globalId);
@@ -96,12 +127,35 @@ const App = withRouter(
           })}
           {[...inboxes.values()].map((inbox) => {
             const base32EncodedId = base32.encode(inbox.globalId);
+
+            if (inbox.setUp) {
+              return (
+                <Route
+                  key={base32EncodedId}
+                  exact
+                  path={"/setup/" + base32EncodedId}
+                  render={() => <Redirect to={"/inbox/" + base32EncodedId} />}
+                />
+              );
+            }
+
             return (
               <Route
+                key={base32EncodedId}
                 exact
                 path={"/setup/" + base32EncodedId}
                 component={goToSetup(inbox)}
+              />
+            );
+          })}
+          {[...inboxes.values()].map((inbox) => {
+            const base32EncodedId = base32.encode(inbox.globalId);
+            return (
+              <Route
                 key={base32EncodedId}
+                exact
+                path={"/settings/" + base32EncodedId}
+                component={goToSettings(inbox)}
               />
             );
           })}

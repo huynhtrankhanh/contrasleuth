@@ -15,6 +15,20 @@ export const NeatBackground = styled(motion.div)`
   flex-direction: column;
 `;
 
+export const AlternateBackground = styled(motion.div)`
+  min-width: 100vw;
+  min-height: calc(100vh - 64px);
+  padding-top: 32px;
+  padding-bottom: 32px;
+  background: #000000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  color: white;
+  flex-direction: column;
+`;
+
 export const Sticky = styled(motion.div)`
   position: sticky;
   top: 16px;
@@ -87,7 +101,12 @@ export const ItemWithDetails = styled(motion.button)`
   max-width: 500px;
   div:nth-child(2) {
     margin-top: 6px;
-    font-style: italic;
+    &:not(.no-italic) {
+      font-style: italic;
+    }
+    &.height-cap {
+      max-height: 64px;
+    }
     opacity: 0.8;
   }
   font-size: 18px;
@@ -97,6 +116,11 @@ export const ItemWithDetails = styled(motion.button)`
     border-top-left-radius: 0px;
     border-top-right-radius: 0px;
   }
+`;
+
+export const Deemphasize = styled(motion.span)`
+  font-style: italic;
+  opacity: 0.8;
 `;
 
 export const Button = styled(motion.button)`
@@ -115,14 +139,19 @@ export const Button = styled(motion.button)`
   cursor: pointer;
 
   background: #d84315;
+  &.transparent {
+    background: transparent;
+  }
+
   display: block;
   border-radius: 7px;
-  width: calc(100vw - 2 * 40px);
+  width: calc(100vw - 2 * 41px);
   padding-left: 20px;
   padding-right: 20px;
-  max-width: 500px;
+  max-width: 498px;
   border: 1px solid white;
-  line-height: 40px;
+  padding-top: 12px;
+  padding-bottom: 12px;
   font-size: 18px;
 `;
 
@@ -136,12 +165,12 @@ export const Input = styled(motion.input)`
   display: block;
   border-radius: 7px;
   background: #b71c1c;
-  width: calc(100vw - 2 * 40px - 2px);
+  width: calc(100vw - 2 * 41px - 2px);
   padding-left: 21px;
   padding-right: 21px;
   padding-top: 1px;
   padding-bottom: 1px;
-  max-width: 498px;
+  max-width: 496px;
   border: 1px solid white;
   line-height: 38px;
   font-size: 18px;
@@ -161,7 +190,7 @@ export const Input = styled(motion.input)`
   }
 `;
 
-export const InboxNotifications = styled(motion.div)`
+export const ItemNotifications = styled(motion.div)`
   width: calc(100vw - 2 * 40px);
   padding-left: 20px;
   padding-right: 20px;
@@ -173,4 +202,8 @@ export const InboxNotifications = styled(motion.div)`
   text-transform: uppercase;
   font-size: 14px;
   line-height: 22px;
+`;
+
+export const Bold = styled(motion.span)`
+  font-weight: bold;
 `;

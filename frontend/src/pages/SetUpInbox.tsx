@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { motion, useAnimation, useInvertedScale } from "framer-motion";
+import { motion, useAnimation } from "framer-motion";
 import * as Theme from "../theme";
 import Page from "../pages";
 import { useHistory } from "react-router-dom";
@@ -12,31 +12,9 @@ import {
   markInboxAsSetUp,
 } from "../store";
 import InboxCard from "../components/InboxCard";
+import ToggleAutosave from "../components/ToggleAutosave";
 import { observer } from "mobx-react";
 import base32 from "hi-base32";
-
-const ToggleAutosave = ({ autosave }: { autosave: boolean }) => {
-  const inverted = useInvertedScale();
-  return autosave ? (
-    <>
-      <Localized id="save-messages-automatically">
-        <motion.div style={inverted} />
-      </Localized>
-      <Localized id="save-messages-automatically-explanation">
-        <motion.div style={inverted} />
-      </Localized>
-    </>
-  ) : (
-    <>
-      <Localized id="save-messages-manually">
-        <motion.div style={inverted} />
-      </Localized>
-      <Localized id="save-messages-manually-explanation">
-        <motion.div style={inverted} />
-      </Localized>
-    </>
-  );
-};
 
 const SetUpInbox = observer(
   ({
@@ -151,7 +129,7 @@ const SetUpInbox = observer(
                   onClick={() => {
                     publishPublicHalfEntry(inbox, "setup inbox");
                     markInboxAsSetUp(inbox);
-                    history.push("/inbox/" + base32.encode(inbox.globalId));
+                    history.replace("/inbox/" + base32.encode(inbox.globalId));
                   }}
                 />
               </Localized>

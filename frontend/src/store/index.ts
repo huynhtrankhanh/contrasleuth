@@ -225,6 +225,9 @@ const methods = (() => {
         pendingOperations: new Map(),
         unreadCount: 0,
         setUp: false,
+        renewOperationCount: 0,
+        setupOperationCount: 0,
+        sendOperationCount: 0,
       });
 
       const inbox = inboxes.get(syntheticId);
@@ -254,10 +257,27 @@ const methods = (() => {
             inbox.pendingOperations.set(operation.operationId, {
               description: operation.description,
               status: "pending",
+              operationId: operation.operationId,
             });
+
+            if (operation.description.type === "renew inbox") {
+              inbox.renewOperationCount++;
+            } else if (operation.description.type === "setup inbox") {
+              inbox.setupOperationCount++;
+            } else if (operation.description.type === "send message") {
+              inbox.sendOperationCount++;
+            }
 
             methods.waitOnOperation(operation.operationId).then(
               action((outcome) => {
+                if (operation.description.type === "renew inbox") {
+                  inbox.renewOperationCount--;
+                } else if (operation.description.type === "setup inbox") {
+                  inbox.setupOperationCount--;
+                } else if (operation.description.type === "send message") {
+                  inbox.sendOperationCount--;
+                }
+
                 if (outcome === "completed") {
                   const operationStatus = inbox.pendingOperations.get(
                     operation.operationId
@@ -494,6 +514,7 @@ export const AssociatedFrontendData = t.struct({
 });
 
 type OperationStatus = {
+  operationId: string;
   description: OperationDescription;
   status: "pending" | "completed";
 };
@@ -514,6 +535,9 @@ export type Inbox = {
   pendingOperations: Map<string, OperationStatus>;
   unreadCount: number;
   setUp: boolean;
+  renewOperationCount: number;
+  setupOperationCount: number;
+  sendOperationCount: number;
 };
 
 type Predicate = string & { __predicate: boolean };
@@ -631,6 +655,9 @@ export const addInbox = action(
           pendingOperations: new Map(),
           unreadCount: 0,
           setUp: false,
+          renewOperationCount: 0,
+          setupOperationCount: 0,
+          sendOperationCount: 0,
         });
       })
     );
@@ -671,12 +698,25 @@ export const publishPublicHalfEntry = (
       );
 
       inbox.pendingOperations.set(operationId, {
-        description: { type: "renew inbox" },
+        description: { type: setupOrRenew },
         status: "pending",
+        operationId,
       });
+
+      if (setupOrRenew === "setup inbox") {
+        inbox.setupOperationCount++;
+      } else if (setupOrRenew === "renew inbox") {
+        inbox.renewOperationCount++;
+      }
 
       promise.then(
         action((outcome) => {
+          if (setupOrRenew === "setup inbox") {
+            inbox.setupOperationCount--;
+          } else if (setupOrRenew === "renew inbox") {
+            inbox.renewOperationCount--;
+          }
+
           if (outcome === "completed") {
             const operationStatus = inbox.pendingOperations.get(operationId);
             if (operationStatus === undefined) {
@@ -701,6 +741,10 @@ export const renameInbox = action((inbox: Inbox, name: string) => {
 
 export const deleteInbox = action(
   (inboxes: Map<SyntheticId, Inbox>, inbox: Inbox) => {
+    inbox.pendingOperations.forEach((operation) => {
+      methods.cancelSubmitOperation(operation.operationId);
+    });
+
     const syntheticId = synthesizeId(inbox.globalId);
     inboxes.delete(syntheticId);
     methods.deleteInbox(inbox.globalId);
@@ -863,10 +907,15 @@ export const sendMessage = (
       inbox.pendingOperations.set(operationId, {
         description: associatedFrontendData.description,
         status: "pending",
+        operationId,
       });
+
+      inbox.sendOperationCount++;
 
       promise.then(
         action((outcome) => {
+          inbox.sendOperationCount--;
+
           if (outcome === "completed") {
             const operationStatus = inbox.pendingOperations.get(operationId);
             if (operationStatus === undefined) {

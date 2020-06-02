@@ -965,6 +965,7 @@ pub async fn derive(
                             params![&inbox_id],
                         )
                         .unwrap();
+                    inbox_expiration_time.remove(&inbox_id);
                 }
                 Command::GetPublicHalfEntry { inbox_id, blob_tx } => {
                     let mut statement = connection
