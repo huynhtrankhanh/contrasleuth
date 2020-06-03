@@ -13,6 +13,7 @@ import CopyInboxId from "../components/CopyInboxId";
 import useTimestamp from "../useTimestamp";
 import moment from "moment";
 import * as base32 from "hi-base32";
+import MessagePreview from "../components/MessagePreview";
 
 const InboxSearchInput = ({
   children,
@@ -107,26 +108,29 @@ const InboxDetails = observer(
         </Localized>
         {flag && (
           <>
-            <Theme.Space />
+            <Theme.Space layoutTransition={underDampedSpring} />
             <motion.div
               layoutTransition={underDampedSpring}
               style={{ transform: "scale(0.5)" }}
               animate={{ transform: "scale(1)" }}
             >
               <InboxCard inbox={inbox} displayInboxNotifications={false} />
-              <Theme.Space />
+              <Theme.Space layoutTransition={underDampedSpring} />
               <CopyInboxId base32EncodedShortId={base32EncodedShortId} />
-              <Theme.Space />
+              <Theme.Space layoutTransition={underDampedSpring} />
               <Link to={"/settings/" + base32EncodedId}>
                 <Localized id="inbox-settings">
-                  <Theme.Button />
+                  <Theme.Button layoutTransition={underDampedSpring} />
                 </Localized>
               </Link>
-              <Theme.Space />
+              <Theme.Space layoutTransition={underDampedSpring} />
               <Localized id="go-back">
-                <Theme.Button onClick={() => history.goBack()} />
+                <Theme.Button
+                  onClick={() => history.goBack()}
+                  layoutTransition={underDampedSpring}
+                />
               </Localized>
-              <Theme.Space />
+              <Theme.Space layoutTransition={underDampedSpring} />
               <Theme.ItemWithDetails
                 onClick={() => {
                   const pendingOperations =
@@ -136,6 +140,7 @@ const InboxDetails = observer(
                     publishPublicHalfEntry(inbox, "renew inbox");
                   }
                 }}
+                layoutTransition={underDampedSpring}
               >
                 {inbox.setupOperationCount > 0 ? (
                   <>
@@ -189,8 +194,8 @@ const InboxDetails = observer(
               </Theme.ItemWithDetails>
               {inbox.sendOperationCount > 0 && (
                 <>
-                  <Theme.Space />
-                  <Theme.ItemWithDetails>
+                  <Theme.Space layoutTransition={underDampedSpring} />
+                  <Theme.ItemWithDetails layoutTransition={underDampedSpring}>
                     <Localized
                       id="processing-messages"
                       vars={{ messageCount: inbox.sendOperationCount }}
@@ -203,7 +208,11 @@ const InboxDetails = observer(
                   </Theme.ItemWithDetails>
                 </>
               )}
-              <Theme.Space />
+              <Theme.Space layoutTransition={underDampedSpring} />
+              <Theme.Button layoutTransition={underDampedSpring}>
+                <Localized id="compose-message" />
+              </Theme.Button>
+              <Theme.Space layoutTransition={underDampedSpring} />
               <Localized id="search-inbox">
                 <InboxSearchInput
                   inboxLabel={inboxLabel}
@@ -211,20 +220,12 @@ const InboxDetails = observer(
                   controls={inputControls}
                 />
               </Localized>
-              <Theme.Space />
-
-              <Theme.ItemNotifications>
-                Unread replies, unsaved
-              </Theme.ItemNotifications>
-              <Theme.ItemWithDetails className="no-top-rounded-corners">
-                <div>
-                  <Theme.Deemphasize>(unknown)</Theme.Deemphasize> Sender Name{" "}
-                  <Theme.Deemphasize>
-                    (a reply to another message, expires in 6 hours)
-                  </Theme.Deemphasize>
-                </div>
-                <div className="no-italic height-cap">Hello, World!</div>
-              </Theme.ItemWithDetails>
+              {[...inbox.messages.values()].reverse().map((message) => (
+                <>
+                  <Theme.Space layoutTransition={underDampedSpring} />
+                  <MessagePreview inbox={inbox} message={message} />
+                </>
+              ))}
             </motion.div>
           </>
         )}
