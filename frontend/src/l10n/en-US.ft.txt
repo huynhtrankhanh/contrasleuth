@@ -72,3 +72,4 @@ replies-unread = Unread replies
 message-unsaved = Unsaved
 message-unread-unsaved = Unread, unsaved
 replies-unread-unsaved = Unread replies, unsaved
+compose-message = Compose message
