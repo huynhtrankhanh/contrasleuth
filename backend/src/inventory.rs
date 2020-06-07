@@ -1,5 +1,5 @@
 use crate::message_hash::message_hash;
-use async_std::sync::{channel, Receiver, RwLock, Sender};
+use async_std::sync::{channel, Mutex, Receiver, RwLock, Sender};
 use chrono::Utc;
 use futures_intrusive::sync::ManualResetEvent;
 use rusqlite::{params, Connection};
@@ -25,6 +25,7 @@ pub enum OnDisk {
     InsertMessage(Message, Arc<ManualResetEvent>),
 }
 
+#[derive(Debug)]
 pub enum Mutation {
     Insert(Arc<Vec<u8>>),
     Purge(Arc<Vec<u8>>),
@@ -154,20 +155,21 @@ pub async fn populate(
     map_hash_to_expiration_time: &RwLock<HashMap<Arc<Vec<u8>>, i64>>,
     connection: &Connection,
     mutate_tx: &Sender<Mutation>,
-) -> u128 {
-    let mut counter: u128 = 0;
+    counter: &Mutex<u128>,
+) {
+    let mut counter = counter.lock().await;
     let mut statement = connection
         .prepare(include_str!("../sql/B. RPC/Retrieve messages.sql"))
         .unwrap();
     let mut rows = statement.query(params![]).unwrap();
     while let Some(row) = rows.next().unwrap() {
-        counter += 1;
+        *counter += 1;
         let hash: Vec<u8> = row.get(0).unwrap();
         let hash = Arc::new(hash);
         let expiration_time: i64 = row.get(3).unwrap();
         add_hash(
             hash.clone(),
-            counter,
+            *counter,
             expiration_time,
             &map_counter_to_hash,
             &map_expiration_time_to_hashes,
@@ -177,7 +179,6 @@ pub async fn populate(
         .await;
         mutate_tx.send(Mutation::Insert(hash.clone())).await;
     }
-    counter
 }
 
 pub async fn purge_expired(
@@ -226,7 +227,7 @@ pub async fn purge_expired(
 /// This task is meant to be spawned. It executes blocking DB operations.
 pub async fn on_disk(
     rx: Receiver<OnDisk>,
-    initial_counter: u128,
+    counter: &Mutex<u128>,
     map_counter_to_hash: &RwLock<BTreeMap<u128, Arc<Vec<u8>>>>,
     map_expiration_time_to_hashes: &RwLock<BTreeMap<i64, RwLock<HashSet<Arc<Vec<u8>>>>>>,
     map_hash_to_counter: &RwLock<HashMap<Arc<Vec<u8>>, u128>>,
@@ -234,7 +235,6 @@ pub async fn on_disk(
     connection: &Connection,
     mutate_tx: &Sender<Mutation>,
 ) {
-    let mut counter = initial_counter;
     // It is better to execute SQLite operations sequentially. SQLite locks the database
     // during an operation, so there is nothing gained from spawning dedicated tasks for
     // each operation.
@@ -281,11 +281,11 @@ pub async fn on_disk(
                 },
                 event,
             ) => {
-                counter += 1;
+                *counter.lock().await += 1;
                 let hash = Arc::new(message_hash(&payload, expiration_time).to_vec());
                 add_hash(
                     hash.clone(),
-                    counter,
+                    *counter.lock().await,
                     expiration_time,
                     &map_counter_to_hash,
                     &map_expiration_time_to_hashes,

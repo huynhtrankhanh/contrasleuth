@@ -1,5 +1,5 @@
 use crate::inventory::{in_memory, on_disk, populate, purge_expired, InMemory, Mutation, OnDisk};
-use async_std::sync::{Receiver, RwLock, Sender};
+use async_std::sync::{Mutex, Receiver, RwLock, Sender};
 use async_std::task;
 use futures::task::LocalSpawn;
 use rusqlite::{params, Connection};
@@ -30,14 +30,34 @@ pub fn init_inventory(
     let map_hash_to_counter = Arc::new(RwLock::new(HashMap::<Arc<Vec<u8>>, u128>::new()));
     let map_hash_to_expiration_time = Arc::new(RwLock::new(HashMap::<Arc<Vec<u8>>, i64>::new()));
 
-    let initial_counter = task::block_on(populate(
-        &map_counter_to_hash,
-        &map_expiration_time_to_hashes,
-        &map_hash_to_counter,
-        &map_hash_to_expiration_time,
-        &connection,
-        &mutate_tx,
-    ));
+    let counter = Arc::new(Mutex::new(0u128));
+
+    {
+        let map_counter_to_hash = map_counter_to_hash.clone();
+        let map_expiration_time_to_hashes = map_expiration_time_to_hashes.clone();
+        let map_hash_to_counter = map_hash_to_counter.clone();
+        let map_hash_to_expiration_time = map_hash_to_expiration_time.clone();
+        let connection = connection.clone();
+        let mutate_tx = mutate_tx.clone();
+        let counter = counter.clone();
+        spawner
+            .spawn_local_obj(
+                Box::new(async move {
+                    populate(
+                        &map_counter_to_hash,
+                        &map_expiration_time_to_hashes,
+                        &map_hash_to_counter,
+                        &map_hash_to_expiration_time,
+                        &connection,
+                        &mutate_tx,
+                        &counter,
+                    )
+                    .await;
+                })
+                .into(),
+            )
+            .unwrap();
+    }
 
     {
         let map_counter_to_hash = map_counter_to_hash.clone();
@@ -91,7 +111,7 @@ pub fn init_inventory(
             Box::new(async move {
                 on_disk(
                     on_disk_rx,
-                    initial_counter,
+                    &counter,
                     &map_counter_to_hash,
                     &map_expiration_time_to_hashes,
                     &map_hash_to_counter,
