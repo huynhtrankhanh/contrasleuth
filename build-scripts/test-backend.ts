@@ -8,8 +8,8 @@ enum SubmitResult {
   Cancelled
 }
 
-const atob = (s: string) => Buffer.from(s, "base64").toString();
-const btoa = (s: string) => Buffer.from(s).toString("base64");
+const atob = (s: string) => Buffer.from(s, "base64").toString("utf-8");
+const btoa = (s: string) => Buffer.from(s, "utf-8").toString("base64");
 
 test.before(
   t =>

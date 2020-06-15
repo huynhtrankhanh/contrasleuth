@@ -269,7 +269,7 @@ const methods = (() => {
             }
 
             methods.waitOnOperation(operation.operationId).then(
-              action((outcome) => {
+              action((_outcome) => {
                 if (operation.description.type === "renew inbox") {
                   inbox.renewOperationCount--;
                 } else if (operation.description.type === "setup inbox") {
@@ -278,19 +278,7 @@ const methods = (() => {
                   inbox.sendOperationCount--;
                 }
 
-                if (outcome === "completed") {
-                  const operationStatus = inbox.pendingOperations.get(
-                    operation.operationId
-                  );
-                  if (operationStatus === undefined) {
-                    console.log(new Error("This should be unreachable."));
-                    return;
-                  }
-
-                  operationStatus.status = "completed";
-                } else {
-                  inbox.pendingOperations.delete(operation.operationId);
-                }
+                inbox.pendingOperations.delete(operation.operationId);
               })
             );
           });
@@ -422,10 +410,20 @@ const methods = (() => {
   return methods;
 })();
 
+const PublicHalf = t.struct({
+  publicEncryptionKey: t.list(t.Number),
+  publicSigningKey: t.list(t.Number),
+});
+
 export type PublicHalf = {
   publicEncryptionKey: number[];
   publicSigningKey: number[];
 };
+
+const Attachment = t.struct({
+  mimeType: t.String,
+  blob: t.list(t.Number),
+});
 
 export type Attachment = {
   mimeType: string;
@@ -464,25 +462,6 @@ export const synthesizeContactId = (
 ) =>
   JSON.stringify([publicEncryptionKey, publicSigningKey]) as SyntheticContactId;
 
-export const RecipientDescription = t.union([
-  t.struct({
-    type: t.refinement(t.String, (string) => string === "named"),
-    name: t.String,
-  }),
-  t.struct({
-    type: t.refinement(t.String, (string) => string === "unnamed"),
-    firstTenBytesInBase32: t.String,
-  }),
-]);
-
-export type RecipientDescription =
-  | {
-      type: "named";
-      name: string;
-    }
-  | { type: "unnamed" }
-  | { type: "hidden" };
-
 export const OperationDescription = t.union([
   t.struct({
     type: t.refinement(t.String, (string) => string === "renew inbox"),
@@ -492,7 +471,15 @@ export const OperationDescription = t.union([
   }),
   t.struct({
     type: t.refinement(t.String, (string) => string === "send message"),
-    recipients: t.list(RecipientDescription),
+    inReplyTo: t.maybe(t.list(t.Number)),
+    disclosedRecipients: t.list(PublicHalf),
+    richTextFormat: t.refinement(t.String, (string) =>
+      ["markdown", "plaintext"].includes(string)
+    ),
+    content: t.String,
+    attachments: t.list(Attachment),
+    hiddenRecipients: t.list(PublicHalf),
+    expirationTime: t.Number,
   }),
 ]);
 
@@ -505,7 +492,13 @@ export type OperationDescription =
     }
   | {
       type: "send message";
-      recipients: RecipientDescription[];
+      inReplyTo: number[] | null;
+      disclosedRecipients: PublicHalf[];
+      richTextFormat: "markdown" | "plaintext";
+      content: string;
+      attachments: Attachment[];
+      hiddenRecipients: PublicHalf[];
+      expirationTime: number;
     };
 
 export const AssociatedFrontendData = t.struct({
@@ -710,24 +703,14 @@ export const publishPublicHalfEntry = (
       }
 
       promise.then(
-        action((outcome) => {
+        action((_outcome) => {
           if (setupOrRenew === "setup inbox") {
             inbox.setupOperationCount--;
           } else if (setupOrRenew === "renew inbox") {
             inbox.renewOperationCount--;
           }
 
-          if (outcome === "completed") {
-            const operationStatus = inbox.pendingOperations.get(operationId);
-            if (operationStatus === undefined) {
-              console.log(new Error("This should be unreachable."));
-              return;
-            }
-
-            operationStatus.status = "completed";
-          } else {
-            inbox.pendingOperations.delete(operationId);
-          }
+          inbox.pendingOperations.delete(operationId);
         })
       );
     })
@@ -872,64 +855,44 @@ export const sendMessage = (
       hiddenRecipients.map(({ publicEncryptionKey }) => publicEncryptionKey),
       inbox.globalId
     )
-    .then((encoded) => {
-      const associatedFrontendData: AssociatedFrontendData = {
-        inboxId: inbox.globalId,
-        description: {
-          type: "send message",
-          recipients: [
-            ...hiddenRecipients.map(
-              () => ({ type: "hidden" } as { type: "hidden" })
-            ),
-            ...disclosedRecipients.map(
-              ({ publicEncryptionKey, publicSigningKey }) => {
-                const contact = contacts.get(
-                  synthesizeContactId(publicEncryptionKey, publicSigningKey)
-                );
-                if (contact === undefined) {
-                  return { type: "unnamed" } as { type: "unnamed" };
-                }
-                return { type: "named", name: contact.label } as {
-                  type: "named";
-                  name: string;
-                };
-              }
-            ),
-          ],
-        },
-      };
-      const [promise, operationId] = methods.insertMessage(
-        encoded.EncodedMessage,
-        expirationTime,
-        JSON.stringify(associatedFrontendData)
-      );
+    .then(
+      action((encoded) => {
+        const associatedFrontendData: AssociatedFrontendData = {
+          inboxId: inbox.globalId,
+          description: {
+            type: "send message",
+            inReplyTo: inReplyTo === undefined ? null : inReplyTo,
+            disclosedRecipients,
+            richTextFormat,
+            content,
+            attachments,
+            hiddenRecipients,
+            expirationTime,
+          },
+        };
+        const [promise, operationId] = methods.insertMessage(
+          encoded.EncodedMessage,
+          expirationTime,
+          JSON.stringify(associatedFrontendData)
+        );
 
-      inbox.pendingOperations.set(operationId, {
-        description: associatedFrontendData.description,
-        status: "pending",
-        operationId,
-      });
+        inbox.pendingOperations.set(operationId, {
+          description: associatedFrontendData.description,
+          status: "pending",
+          operationId,
+        });
 
-      inbox.sendOperationCount++;
+        inbox.sendOperationCount++;
 
-      promise.then(
-        action((outcome) => {
-          inbox.sendOperationCount--;
+        promise.then(
+          action((outcome) => {
+            inbox.sendOperationCount--;
 
-          if (outcome === "completed") {
-            const operationStatus = inbox.pendingOperations.get(operationId);
-            if (operationStatus === undefined) {
-              console.log(new Error("This should be unreachable."));
-              return;
-            }
-
-            operationStatus.status = "completed";
-          } else {
             inbox.pendingOperations.delete(operationId);
-          }
-        })
-      );
-    });
+          })
+        );
+      })
+    );
 };
 
 export const inboxes = observable(new Map<SyntheticId, Inbox>());

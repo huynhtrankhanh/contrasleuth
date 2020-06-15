@@ -1,0 +1,1 @@
+CREATE INDEX IF NOT EXISTS index2 ON messages (inbox_id)

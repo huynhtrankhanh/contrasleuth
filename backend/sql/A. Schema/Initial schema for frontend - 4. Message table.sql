@@ -1,5 +1,5 @@
 CREATE TABLE IF NOT EXISTS messages (
-    global_id BLOB PRIMARY KEY NOT NULL,
+    global_id BLOB NOT NULL,
     message_type TEXT CHECK(
         message_type IN (
             "unsaved",

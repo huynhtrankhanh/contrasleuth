@@ -7,17 +7,22 @@ import { negotiateLanguages } from "@fluent/langneg";
 import { FluentBundle, FluentResource } from "@fluent/bundle";
 import { LocalizationProvider, ReactLocalization } from "@fluent/react";
 import { ready } from "libsodium-wrappers";
+import moment from "moment/min/moment-with-locales";
 
 import enUS from "./l10n/en-US.ft.txt";
 
 // For debugging.
 window.store = store;
 
+const languages = negotiateLanguages(navigator.languages, ["en-US"], {
+  defaultLocale: "en-US",
+});
+
+moment.locale(languages[0]);
+
 Promise.all([
   Promise.all(
-    negotiateLanguages(navigator.languages, ["en-US"], {
-      defaultLocale: "en-US",
-    }).map((locale) =>
+    languages.map((locale) =>
       fetch(enUS)
         .then((response) => response.text())
         .then((body) => {

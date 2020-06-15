@@ -1,4 +1,1 @@
-INSERT
-    OR IGNORE INTO messages
-VALUES
-    (?, ?, ?, ?)
+INSERT INTO messages VALUES (?, ?, ?, ?)

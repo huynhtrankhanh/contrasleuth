@@ -1,5 +1,11 @@
 import React, { useState, useEffect } from "react";
-import { withRouter, Redirect, Route, Switch } from "react-router-dom";
+import {
+  useParams,
+  withRouter,
+  Redirect,
+  Route,
+  Switch,
+} from "react-router-dom";
 import { IonApp } from "@ionic/react";
 import { IonReactRouter } from "@ionic/react-router";
 import "./index.css";
@@ -13,23 +19,30 @@ import InboxDetails from "./pages/InboxDetails";
 import InboxSettings from "./pages/InboxSettings";
 import InboxDoesNotExist from "./pages/InboxDoesNotExist";
 import { observer } from "mobx-react";
-import { inboxes, Inbox, synthesizeId } from "./store";
+import { inboxes, Inbox, synthesizeId, Message } from "./store";
 import base32 from "hi-base32";
+import ComposeMessage from "./pages/ComposeMessage";
+import ViewMessage from "./pages/ViewMessage";
 
 const App = withRouter(
   observer(() => {
     const [page, setPage] = useState<Page>("not found");
     const [shouldEnter, setShouldEnter] = useState(true);
     const [inbox, setInbox] = useState<Inbox | null>(null);
+    const [inReplyTo, setInReplyTo] = useState<string | null>(null);
+    const [messageId, setMessageId] = useState<string | null>(null);
 
     useEffect(() => {
       if (
         page !== "inbox" &&
         page !== "setup" &&
         page !== "inbox settings" &&
+        page !== "compose" &&
+        page !== "message" &&
         shouldEnter
       ) {
         setInbox(null);
+        setInReplyTo(null);
       }
     }, [shouldEnter, page]);
 
@@ -53,6 +66,20 @@ const App = withRouter(
     const goToSettings = (inbox: Inbox) => () => {
       setInbox(inbox);
       setPage("inbox settings");
+      return null;
+    };
+
+    const goToCompose = (inbox: Inbox, inReplyTo: string | null) => () => {
+      setInbox(inbox);
+      setInReplyTo(inReplyTo);
+      setPage("compose");
+      return null;
+    };
+
+    const goToMessage = (inbox: Inbox, messageId: string) => () => {
+      setInbox(inbox);
+      setMessageId(messageId);
+      setPage("message");
       return null;
     };
 
@@ -96,6 +123,20 @@ const App = withRouter(
           shouldEnter={shouldEnter}
           setShouldEnter={setShouldEnter}
           inbox={inbox}
+        />
+        <ComposeMessage
+          page={page}
+          inReplyTo={inReplyTo}
+          shouldEnter={shouldEnter}
+          setShouldEnter={setShouldEnter}
+          inbox={inbox}
+        />
+        <ViewMessage
+          page={page}
+          shouldEnter={shouldEnter}
+          setShouldEnter={setShouldEnter}
+          inbox={inbox}
+          messageId={messageId}
         />
         <Switch>
           <Route exact path="/select-inbox" component={goTo("select inbox")} />
@@ -156,6 +197,55 @@ const App = withRouter(
                 exact
                 path={"/settings/" + base32EncodedId}
                 component={goToSettings(inbox)}
+              />
+            );
+          })}
+          {[...inboxes.values()].map((inbox) => {
+            const base32EncodedId = base32.encode(inbox.globalId);
+            return (
+              <Route
+                key={base32EncodedId}
+                exact
+                path={"/compose/" + base32EncodedId}
+                component={goToCompose(inbox, null)}
+              />
+            );
+          })}
+          {[...inboxes.values()].map((inbox) => {
+            const base32EncodedId = base32.encode(inbox.globalId);
+            return (
+              <Route
+                key={base32EncodedId}
+                exact
+                path={"/compose/" + base32EncodedId + "/:inReplyTo"}
+                component={() => {
+                  const { inReplyTo } = useParams();
+                  if (inReplyTo === undefined) {
+                    console.log(new Error("This should be unreachable."));
+                    return null;
+                  }
+
+                  return goToCompose(inbox, inReplyTo)();
+                }}
+              />
+            );
+          })}
+          {[...inboxes.values()].map((inbox) => {
+            const base32EncodedId = base32.encode(inbox.globalId);
+            return (
+              <Route
+                key={base32EncodedId}
+                exact
+                path={"/message/" + base32EncodedId + "/:messageId"}
+                component={() => {
+                  const { messageId } = useParams();
+                  if (messageId === undefined) {
+                    console.log(new Error("This should be unreachable."));
+                    return null;
+                  }
+
+                  return goToMessage(inbox, messageId)();
+                }}
               />
             );
           })}

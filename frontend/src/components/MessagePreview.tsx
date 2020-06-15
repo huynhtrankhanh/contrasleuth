@@ -12,12 +12,20 @@ import * as Theme from "../theme";
 import { Localized } from "@fluent/react";
 import base32 from "hi-base32";
 import calculatePublicHalfId from "../calculatePublicHalfId";
-import moment from "moment";
+import moment from "moment/min/moment-with-locales";
 import useTimestamp from "../useTimestamp";
 import underDampedSpring from "../underDampedSpring";
 
 const MessagePreview = observer(
-  ({ inbox, message }: { inbox: Inbox; message: Message }) => {
+  ({
+    inbox,
+    message,
+    parent = false,
+  }: {
+    inbox: Inbox;
+    message: Message;
+    parent?: boolean;
+  }) => {
     const unread = !message.read;
     const unreadReplies = (() => {
       const syntheticId = synthesizeId(message.globalId);
@@ -33,7 +41,8 @@ const MessagePreview = observer(
       });
     })();
     const unsaved = message.messageType === "unsaved";
-    const displayTopRoundedCorners = !unread && !unreadReplies && !unsaved;
+    const displayTopRoundedCorners =
+      !unread && !unreadReplies && !unsaved && !parent;
 
     type Sender =
       | { type: "unknown"; base32EncodedShortId: string }
@@ -53,7 +62,7 @@ const MessagePreview = observer(
             calculatePublicHalfId(
               message.sender.publicEncryptionKey,
               message.sender.publicSigningKey
-            )
+            ).slice(0, 10)
           ),
         };
       }
@@ -65,7 +74,11 @@ const MessagePreview = observer(
 
     return (
       <>
-        {unread && unsaved ? (
+        {parent ? (
+          <Theme.ItemNotifications layoutTransition={underDampedSpring}>
+            <Localized id="parent-message" />
+          </Theme.ItemNotifications>
+        ) : unread && unsaved ? (
           <Theme.ItemNotifications layoutTransition={underDampedSpring}>
             <Localized id="message-unread-unsaved" />
           </Theme.ItemNotifications>
@@ -93,7 +106,9 @@ const MessagePreview = observer(
           <div>
             {sender.type === "unknown" ? (
               <>
-                <Theme.Deemphasize>(unknown)</Theme.Deemphasize>{" "}
+                <Theme.Deemphasize>
+                  <Localized id="unknown" />
+                </Theme.Deemphasize>{" "}
                 {sender.base32EncodedShortId}
               </>
             ) : sender.type === "contact" ? (
@@ -159,7 +174,16 @@ const MessagePreview = observer(
               ) : null;
             })()}
           </div>
-          <div className="no-italic height-cap">{message.content}</div>
+          <div className="no-italic height-cap">
+            {message.attachments.length > 0 && (
+              <>
+                <Theme.Deemphasize>
+                  <Localized id="attachment-included" />
+                </Theme.Deemphasize>{" "}
+              </>
+            )}
+            {message.content}
+          </div>
         </Theme.ItemWithDetails>
       </>
     );

@@ -146,7 +146,10 @@ const InboxSettings = observer(
               animate={{ transform: "scale(1)" }}
             >
               <Theme.Space layoutTransition={underDampedSpring} />
-              <motion.div layoutTransition={underDampedSpring}>
+              <motion.div
+                layoutTransition={underDampedSpring}
+                onClick={() => history.goBack()}
+              >
                 <InboxCard inbox={inbox} displayInboxNotifications={false} />
               </motion.div>
               <Theme.Space layoutTransition={underDampedSpring} />
@@ -219,7 +222,7 @@ const InboxSettings = observer(
                             inputControls.start({ transform: "scale(1)" })
                           );
                         if (inputRef.current !== null) {
-                          inputRef.current.focus();
+                          inputRef.current.select();
                         }
                         return;
                       }

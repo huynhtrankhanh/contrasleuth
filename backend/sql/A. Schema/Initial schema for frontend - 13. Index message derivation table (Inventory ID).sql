@@ -1,0 +1,1 @@
+CREATE INDEX IF NOT EXISTS index7 ON message_content_derivation_table (derived_from)

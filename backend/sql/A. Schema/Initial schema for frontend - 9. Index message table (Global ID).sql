@@ -1,0 +1,1 @@
+CREATE INDEX IF NOT EXISTS index3 ON messages (global_id)
