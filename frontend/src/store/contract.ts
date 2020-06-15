@@ -30,6 +30,10 @@ import {
   PendingProofOfWorkOperations,
 } from "./rpc-schema";
 import * as t from "./typecheck";
+import { Buffer } from "buffer";
+
+const atob = (s: string) => Buffer.from(s, "base64").toString("utf-8");
+const btoa = (s: string) => Buffer.from(s, "utf-8").toString("base64");
 
 export type Event =
   | {

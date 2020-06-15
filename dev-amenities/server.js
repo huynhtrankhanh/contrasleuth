@@ -2,7 +2,7 @@ const io = require("socket.io")(2020);
 const { spawn } = require("child_process");
 const split2 = require("split2");
 
-const buildProcess = spawn("cd ../backend && cargo build", { shell: true });
+const buildProcess = spawn("cd ../backend && cargo build --release", { shell: true });
 buildProcess.stdout.on("data", data => process.stdout.write(data));
 buildProcess.stderr.on("data", data => process.stderr.write(data));
 buildProcess.on("close", (code, signal) => {
@@ -22,7 +22,7 @@ buildProcess.on("close", (code, signal) => {
 
 const proceed = () => {
   const { stdin, stdout, stderr } = spawn(
-    "../backend/target/debug/contrasleuth --address 127.0.0.1:0 --database backend.sqlite --frontend-database frontend.sqlite",
+    "../backend/target/release/contrasleuth --address 127.0.0.1:0 --database backend.sqlite --frontend-database frontend.sqlite",
     {
       shell: true
     }

@@ -1,39 +1,19 @@
 import React, { useState, useEffect } from "react";
-import { motion, useAnimation, AnimationControls } from "framer-motion";
+import { motion, useAnimation } from "framer-motion";
 import * as Theme from "../theme";
 import Page from "../pages";
 import { Link } from "react-router-dom";
 import { useHistory } from "react-router-dom";
 import { Localized } from "@fluent/react";
-import { Inbox, publishPublicHalfEntry } from "../store";
+import { Inbox, publishPublicHalfEntry, synthesizeId } from "../store";
 import underDampedSpring from "../underDampedSpring";
 import { observer } from "mobx-react";
 import InboxCard from "../components/InboxCard";
 import CopyInboxId from "../components/CopyInboxId";
 import useTimestamp from "../useTimestamp";
-import moment from "moment";
+import moment from "moment/min/moment-with-locales";
 import * as base32 from "hi-base32";
 import MessagePreview from "../components/MessagePreview";
-
-const InboxSearchInput = ({
-  children,
-  inboxLabel,
-  setSearchQuery,
-  controls,
-}: {
-  children?: string;
-  inboxLabel: string;
-  setSearchQuery: (value: string) => void;
-  controls: AnimationControls;
-}) => (
-  <Theme.Input
-    placeholder={children}
-    value={inboxLabel}
-    onChange={(event) => setSearchQuery(event.target.value)}
-    initial={{ transform: "scale(1)" }}
-    animate={controls}
-  />
-);
 
 const InboxDetails = observer(
   ({
@@ -49,18 +29,17 @@ const InboxDetails = observer(
   }) => {
     const [visible, setVisible] = useState(false);
     const [flag, setFlag] = useState(false);
-    const [inboxLabel, setSearchQuery] = useState("");
     const controls = useAnimation();
-    const inputControls = useAnimation();
     const history = useHistory();
     const now = useTimestamp();
+    const [showHiddenMessages, setShowHiddenMessages] = useState(false);
 
     useEffect(() => {
       if (page === "inbox") {
         if (!visible && shouldEnter) {
           setVisible(true);
           setShouldEnter(false);
-          setSearchQuery("");
+          setShowHiddenMessages(false);
         }
       } else {
         if (visible) {
@@ -202,30 +181,82 @@ const InboxDetails = observer(
                     >
                       <div />
                     </Localized>
-                    <Localized id="tap-to-view">
-                      <div />
-                    </Localized>
                   </Theme.ItemWithDetails>
                 </>
               )}
               <Theme.Space layoutTransition={underDampedSpring} />
-              <Theme.Button layoutTransition={underDampedSpring}>
-                <Localized id="compose-message" />
-              </Theme.Button>
+              <Link to={"/compose/" + base32EncodedId}>
+                <Theme.Button layoutTransition={underDampedSpring}>
+                  <Localized id="compose-message" />
+                </Theme.Button>
+              </Link>
               <Theme.Space layoutTransition={underDampedSpring} />
-              <Localized id="search-inbox">
-                <InboxSearchInput
-                  inboxLabel={inboxLabel}
-                  setSearchQuery={setSearchQuery}
-                  controls={inputControls}
-                />
-              </Localized>
-              {[...inbox.messages.values()].reverse().map((message) => (
+              {[...inbox.messages.values()].reduce(
+                (accumulated, current) => accumulated + Number(current.hidden),
+                0
+              ) > 0 && (
                 <>
-                  <Theme.Space layoutTransition={underDampedSpring} />
-                  <MessagePreview inbox={inbox} message={message} />
+                  {showHiddenMessages ? (
+                    <>
+                      <Theme.Button
+                        layoutTransition={underDampedSpring}
+                        onClick={() => setShowHiddenMessages(false)}
+                      >
+                        <Localized id="hide-hidden-messages" />
+                      </Theme.Button>
+                      {[...inbox.messages.values()]
+                        .reverse()
+                        .filter(({ hidden }) => hidden)
+                        .map((message) => (
+                          <>
+                            <Theme.Space layoutTransition={underDampedSpring} />
+                            <Link
+                              to={
+                                "/message/" +
+                                base32EncodedId +
+                                "/" +
+                                base32.encode(message.globalId)
+                              }
+                            >
+                              <MessagePreview inbox={inbox} message={message} />
+                            </Link>
+                          </>
+                        ))}
+                    </>
+                  ) : (
+                    <Theme.Button
+                      layoutTransition={underDampedSpring}
+                      onClick={() => setShowHiddenMessages(true)}
+                    >
+                      <Localized id="show-hidden-messages" />
+                    </Theme.Button>
+                  )}
+                  {inbox.messages.size > 0 && (
+                    <>
+                      <Theme.Space layoutTransition={underDampedSpring} />
+                      <motion.hr layoutTransition={underDampedSpring} />
+                    </>
+                  )}
                 </>
-              ))}
+              )}
+              {[...inbox.messages.values()]
+                .reverse()
+                .filter(({ hidden }) => !hidden)
+                .map((message) => (
+                  <React.Fragment key={synthesizeId(message.globalId)}>
+                    <Theme.Space layoutTransition={underDampedSpring} />
+                    <Link
+                      to={
+                        "/message/" +
+                        base32EncodedId +
+                        "/" +
+                        base32.encode(message.globalId)
+                      }
+                    >
+                      <MessagePreview inbox={inbox} message={message} />
+                    </Link>
+                  </React.Fragment>
+                ))}
             </motion.div>
           </>
         )}

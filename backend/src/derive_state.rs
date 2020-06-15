@@ -422,6 +422,21 @@ pub async fn derive(
     init(include_str!(
         "../sql/A. Schema/Initial schema for frontend - 6. Contact table.sql"
     ));
+    init(include_str!(
+        "../sql/A. Schema/Initial schema for frontend - 7. Index message table.sql"
+    ));
+    init(include_str!(
+        "../sql/A. Schema/Initial schema for frontend - 8. Index message table (Inbox ID).sql"
+    ));
+    init(include_str!(
+        "../sql/A. Schema/Initial schema for frontend - 9. Index message table (Global ID).sql"
+    ));
+    init(include_str!(
+        "../sql/A. Schema/Initial schema for frontend - 10. Index message derivation table.sql"
+    ));
+    init(include_str!("../sql/A. Schema/Initial schema for frontend - 11. Index message derivation table (Inbox ID).sql"));
+    init(include_str!("../sql/A. Schema/Initial schema for frontend - 12. Index message derivation table (Global ID).sql"));
+    init(include_str!("../sql/A. Schema/Initial schema for frontend - 13. Index message derivation table (Inventory ID).sql"));
     fn parse(plaintext: &mut &[u8]) -> Option<Message> {
         let deserialized =
             match capnp::serialize::read_message(plaintext, capnp::message::ReaderOptions::new()) {
@@ -702,7 +717,7 @@ pub async fn derive(
                         .prepare(include_str!("../sql/C. Frontend/Fetch inboxes.sql"))
                         .unwrap();
                     let mut rows = statement.query(params![]).unwrap();
-                    'outer: while let Some(row) = rows.next().unwrap() {
+                    while let Some(row) = rows.next().unwrap() {
                         let private_encryption_key: Vec<u8> = row.get(3).unwrap();
                         let inbox_id: Vec<u8> = row.get(0).unwrap();
 
@@ -736,7 +751,7 @@ pub async fn derive(
                                                 expiration_time,
                                             })
                                             .await;
-                                        continue 'outer;
+                                        continue;
                                     }
                                 }
                             }
@@ -800,7 +815,7 @@ pub async fn derive(
                                             })
                                             .await;
                                     }
-                                    continue 'outer;
+                                    continue;
                                 }
                             }
                         }

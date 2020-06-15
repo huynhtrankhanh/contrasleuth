@@ -5,8 +5,10 @@ import { useAnimation } from "framer-motion";
 
 const CopyInboxId = ({
   base32EncodedShortId,
+  alternateColorScheme = false,
 }: {
   base32EncodedShortId: string;
+  alternateColorScheme?: boolean;
 }) => {
   const [copyInboxIdButtonLabel, setCopyInboxIdButtonLabel] = useState<
     "copy-inbox-id" | "inbox-id-copied"
@@ -16,7 +18,11 @@ const CopyInboxId = ({
   return (
     <Localized id={copyInboxIdButtonLabel}>
       <Theme.Button
-        initial={{ backgroundColor: "#d84315", color: "#ffffff" }}
+        initial={
+          alternateColorScheme
+            ? { backgroundColor: "#ffffff", color: "#000000" }
+            : { backgroundColor: "#d84315", color: "#ffffff" }
+        }
         animate={copyInboxIdControls}
         onClick={() => {
           const inputElement = document.createElement("input");
@@ -27,13 +33,18 @@ const CopyInboxId = ({
           document.body.removeChild(inputElement);
           setCopyInboxIdButtonLabel("inbox-id-copied");
           copyInboxIdControls
-            .start({ backgroundColor: "#ffffff", color: "#000000" })
+            .start(
+              alternateColorScheme
+                ? { backgroundColor: "#000000", color: "#ffffff" }
+                : { backgroundColor: "#ffffff", color: "#000000" }
+            )
             .then(() => {
               copyInboxIdControls
-                .start({
-                  backgroundColor: "#d84315",
-                  color: "#ffffff",
-                })
+                .start(
+                  alternateColorScheme
+                    ? { backgroundColor: "#ffffff", color: "#000000" }
+                    : { backgroundColor: "#d84315", color: "#ffffff" }
+                )
                 .then(() => {
                   setCopyInboxIdButtonLabel("copy-inbox-id");
                 });

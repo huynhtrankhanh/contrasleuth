@@ -1,0 +1,1 @@
+CREATE INDEX IF NOT EXISTS index5 ON message_content_derivation_table (inbox_id)
