@@ -31,6 +31,7 @@ import {
 } from "./rpc-schema";
 import * as t from "./typecheck";
 import { Buffer } from "buffer";
+import { Plugins } from "@capacitor/core";
 
 const atob = (s: string) => Buffer.from(s, "base64").toString("utf-8");
 const btoa = (s: string) => Buffer.from(s, "utf-8").toString("base64");
@@ -51,12 +52,23 @@ export type Event =
   | { type: "InboxEvent"; value: InboxEvent };
 
 const contract = (callback: (event: Event) => void) => {
-  const socket = io();
+  const socket = (() => {
+    if (process.env.NODE_ENV === "development") return io();
+  })() as any;
 
   const frontendPattern = /^[A-Z][a-z]{2}\s+\d+\s+\d+:\d+:\d+\s+\d+\s\[FRONTEND\]/;
   const backendPattern = /^[A-Z][a-z]{2}\s+\d+\s+\d+:\d+:\d+\s+\d+\s\[IPC\]/;
 
-  socket.on("stdout", (data: string) => {
+  const startedPromise = (() => {
+    let resolve;
+    const promise = new Promise<undefined>((innerResolve) => {
+      resolve = innerResolve;
+    });
+    return { promise, resolve: (resolve as unknown) as () => void };
+  })();
+
+  const handleLine = (data: string) => {
+    startedPromise.resolve();
     console.log(data);
     if (frontendPattern.test(data)) {
       parseFrontend(JSON.parse(data.replace(frontendPattern, "")));
@@ -67,10 +79,22 @@ const contract = (callback: (event: Event) => void) => {
       return;
     }
     console.log("This is an informational log message and can't be parsed.");
-  });
+  };
+
+  if (process.env.NODE_ENV === "development") {
+    socket.on("stdout", handleLine);
+  } else {
+    window.addEventListener("stdout line", (event) => {
+      handleLine((event as any).line);
+    });
+  }
 
   const send = (line: string) => {
-    socket.emit("stdin", line);
+    if (process.env.NODE_ENV === "development") {
+      socket.emit("stdin", line);
+    } else {
+      (Plugins as any).EchoPlugin.send({ line });
+    }
   };
 
   type AnswerRequest =
@@ -405,13 +429,16 @@ const contract = (callback: (event: Event) => void) => {
     btoa(JSON.stringify(object)) + "\n";
 
   const dumpState = () =>
-    new Promise<StateDump>((resolve) => {
-      send(formatFrontend("RequestStateDump"));
-      queue.push({
-        soughtForType: "StateDump",
-        fulfill: resolve,
-      });
-    });
+    startedPromise.promise.then(
+      () =>
+        new Promise<StateDump>((resolve) => {
+          send(formatFrontend("RequestStateDump"));
+          queue.push({
+            soughtForType: "StateDump",
+            fulfill: resolve,
+          });
+        })
+    );
 
   const dumpPendingOperations = () =>
     new Promise<PendingProofOfWorkOperations>((resolve) => {

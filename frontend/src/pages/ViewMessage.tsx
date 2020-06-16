@@ -242,11 +242,7 @@ const ViewMessage = observer(
                           <div>
                             <Localized
                               id="interpolated-inbox-id"
-                              vars={{
-                                inboxId: base32.encode(
-                                  inbox.globalId.slice(0, 10)
-                                ),
-                              }}
+                              vars={{ inboxId: base32.encode(id.slice(0, 10)) }}
                             />
                           </div>
                         </Theme.Item>
@@ -416,7 +412,10 @@ const ViewMessage = observer(
                                   id="interpolated-inbox-id"
                                   vars={{
                                     inboxId: base32.encode(
-                                      inbox.globalId.slice(0, 10)
+                                      calculatePublicHalfId(
+                                        message.sender.publicEncryptionKey,
+                                        message.sender.publicSigningKey
+                                      ).slice(0, 10)
                                     ),
                                   }}
                                 />
