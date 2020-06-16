@@ -4,3 +4,8 @@ body {
   background: black;
   font-family: sans-serif;
 }
+
+* {
+  -webkit-tap-highlight-color: transparent !important;
+  user-select: text !important;
+}

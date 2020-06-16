@@ -19,7 +19,7 @@ import InboxDetails from "./pages/InboxDetails";
 import InboxSettings from "./pages/InboxSettings";
 import InboxDoesNotExist from "./pages/InboxDoesNotExist";
 import { observer } from "mobx-react";
-import { inboxes, Inbox, synthesizeId, Message } from "./store";
+import { inboxes, Inbox, synthesizeId } from "./store";
 import base32 from "hi-base32";
 import ComposeMessage from "./pages/ComposeMessage";
 import ViewMessage from "./pages/ViewMessage";
