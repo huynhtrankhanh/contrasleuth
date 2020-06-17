@@ -221,11 +221,7 @@ const ViewMessage = observer(
                             <Theme.Deemphasize>
                               <Localized id={role} />
                             </Theme.Deemphasize>{" "}
-                            {(() => {
-                              const syntheticId = synthesizeContactId(
-                                message.sender.publicEncryptionKey,
-                                message.sender.publicSigningKey
-                              );
+                            {(() => { 
                               const contact = contacts.get(syntheticId);
 
                               if (contact === undefined) {
