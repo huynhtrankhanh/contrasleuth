@@ -221,7 +221,7 @@ const ViewMessage = observer(
                             <Theme.Deemphasize>
                               <Localized id={role} />
                             </Theme.Deemphasize>{" "}
-                            {(() => { 
+                            {(() => {
                               const contact = contacts.get(syntheticId);
 
                               if (contact === undefined) {
@@ -799,7 +799,7 @@ const ViewMessage = observer(
                             const message = inbox.messages.get(syntheticId);
                             if (message === undefined) return null;
                             return (
-                              <>
+                              <React.Fragment key={syntheticId}>
                                 <Theme.Space
                                   layoutTransition={underDampedSpring}
                                 />
@@ -809,7 +809,7 @@ const ViewMessage = observer(
                                     inbox={inbox}
                                   />
                                 </Link>
-                              </>
+                              </React.Fragment>
                             );
                           })}
                         </>

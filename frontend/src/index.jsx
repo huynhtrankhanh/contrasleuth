@@ -10,20 +10,23 @@ import { ready } from "libsodium-wrappers";
 import moment from "moment/min/moment-with-locales";
 
 import enUS from "./l10n/en-US.ft.txt";
+import viVN from "./l10n/vi-VN.ft.txt";
 
 // For debugging.
 window.store = store;
 
-const languages = negotiateLanguages(navigator.languages, ["en-US"], {
+const languages = negotiateLanguages(navigator.languages, ["en-US", "vi-VN"], {
   defaultLocale: "en-US",
 });
+
+const locales = { "en-US": enUS, "vi-VN": viVN };
 
 moment.locale(languages[0]);
 
 Promise.all([
   Promise.all(
     languages.map((locale) =>
-      fetch(enUS)
+      fetch(locales[locale])
         .then((response) => response.text())
         .then((body) => {
           const bundle = new FluentBundle(locale);
