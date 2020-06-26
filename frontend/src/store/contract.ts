@@ -96,7 +96,7 @@ const contract = (callback: (event: Event) => void) => {
       (Plugins as any).EchoPlugin.send({ line });
     }
   };
-
+  
   type AnswerRequest =
     | {
         soughtForType: "CreatedInbox";
