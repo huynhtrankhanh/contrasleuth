@@ -51,7 +51,9 @@
     "build": "react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject",
-    "assemble": "sh assemble.sh"
+    "assemble": "sh assemble.sh",
+    "abridged-assemble": "sh abridged-assemble.sh",
+    "yank-artifacts": "sh yank-artifacts.sh"
   },
   "eslintConfig": {
     "extends": "react-app"
