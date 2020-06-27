@@ -1,5 +1,5 @@
 [package]
-authors = ["huynhtrankhanh"]
+authors = ["Huỳnh Trần Khanh <qcdz9r6wpcbh59@gmail.com>"]
 edition = "2018"
 name = "contrasleuth"
 version = "0.1.0"

@@ -61,32 +61,6 @@ class MainActivity : BridgeActivity() {
                 } else {
                     val intent = Intent(this, MyService::class.java)
                     this.startService(intent)
-
-                    Timer().scheduleAtFixedRate(object : TimerTask() {
-                        override fun run() {
-                            run {
-                                val json = JSONObject()
-                                val nested = JSONObject()
-                                nested.put("address", "192.168.43.96:4016")
-                                nested.put("operation_id", UUID.randomUUID().toString())
-                                json.put("EstablishConnection", nested)
-                                val intent = Intent("stdin line")
-                                intent.putExtra("line", Base64.getEncoder().encodeToString(json.toString().toByteArray()) + "\n")
-                                localBroadcastManager.sendBroadcast(intent)
-                            }
-
-                            run {
-                                val json = JSONObject()
-                                val nested = JSONObject()
-                                nested.put("address", "192.168.43.96:4017")
-                                nested.put("operation_id", UUID.randomUUID().toString())
-                                json.put("EstablishReverseConnection", nested)
-                                val intent = Intent("stdin line")
-                                intent.putExtra("line", Base64.getEncoder().encodeToString(json.toString().toByteArray()) + "\n")
-                                localBroadcastManager.sendBroadcast(intent)
-                            }
-                        }
-                    }, 0, 5000)
                 }
             }
         }
