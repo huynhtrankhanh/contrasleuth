@@ -9,5 +9,6 @@
     "SplashScreen": {
       "launchShowDuration": 0
     }
-  }
+  },
+  "linuxAndroidStudioPath": "/home/qcdz9r6wpcbh59/android-studio/bin/studio.sh"
 }
