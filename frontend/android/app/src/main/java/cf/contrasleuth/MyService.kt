@@ -35,7 +35,7 @@ class MyService : Service() {
     override fun onCreate() {
         val channelId =
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    createNotificationChannel("my_service", "My Background Service")
+                    createNotificationChannel("my_service", "Contrasleuth")
                 } else {
                     ""
                 }
@@ -56,8 +56,8 @@ class MyService : Service() {
         val dataDirectory = this.filesDir.absolutePath
         val sh = Runtime.getRuntime().exec(arrayOf(
                 executable.path,
-                "--address", "0.0.0.0:4016",
-                "--reverse-address", "0.0.0.0:4017",
+                "--address", "0.0.0.0:0",
+                "--reverse-address", "0.0.0.0:0",
                 "--database", "$dataDirectory/backend.sqlite",
                 "--frontend-database", "$dataDirectory/frontend.sqlite"
         ))
