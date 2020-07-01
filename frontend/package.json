@@ -4,8 +4,8 @@
   "private": true,
   "proxy": "http://localhost:2020",
   "dependencies": {
-    "@capacitor/android": "^1.5.0",
-    "@capacitor/core": "1.5.0",
+    "@capacitor/android": "^2.2.0",
+    "@capacitor/core": "^2.2.0",
     "@fluent/bundle": "^0.15.1",
     "@fluent/langneg": "^0.4.0",
     "@fluent/react": "^0.12.0",
@@ -71,7 +71,7 @@
     ]
   },
   "devDependencies": {
-    "@capacitor/cli": "1.5.0"
+    "@capacitor/cli": "^2.2.0"
   },
   "description": "An Ionic project"
 }
