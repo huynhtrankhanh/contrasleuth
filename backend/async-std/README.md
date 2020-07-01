@@ -1,1 +1,0 @@
-A quick and dirty patch for async-std to resolve [this long-standing issue.](https://github.com/async-rs/async-std/pull/286) **This is not intended to be a long-term solution.** This patch is not well thought-out AT ALL.
