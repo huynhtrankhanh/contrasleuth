@@ -1,4 +1,4 @@
-package cf.contrasleuth
+package app.contrasleuth
 
 import android.app.Notification
 import android.app.NotificationChannel
@@ -13,10 +13,11 @@ import android.net.wifi.p2p.WifiP2pManager.WIFI_P2P_CONNECTION_CHANGED_ACTION
 import android.os.Build
 import android.os.IBinder
 import android.os.Parcelable
-import android.support.annotation.RequiresApi
-import android.support.v4.app.NotificationCompat
-import android.support.v4.content.LocalBroadcastManager
+import android.annotation.TargetApi
 import android.util.Log
+import androidx.annotation.RequiresApi
+import androidx.core.app.NotificationCompat
+import androidx.localbroadcastmanager.content.LocalBroadcastManager
 import java.io.BufferedReader
 import java.io.File
 import java.io.IOException

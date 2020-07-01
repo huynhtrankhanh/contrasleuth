@@ -1,5 +1,5 @@
 {
-  "appId": "cf.contrasleuth",
+  "appId": "app.contrasleuth",
   "appName": "frontend",
   "bundledWebRuntime": false,
   "npmClient": "npm",
