@@ -3,7 +3,7 @@ import { observable, configure, action } from "mobx";
 import * as localforage from "localforage";
 import { StoredMessage } from "./rpc-schema";
 import contract from "./contract";
-import uuid from "uuid/v4";
+import { v4 as uuid } from "uuid";
 import * as t from "./typecheck";
 configure({ enforceActions: "always" });
 
