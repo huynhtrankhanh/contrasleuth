@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools"
-    package="cf.contrasleuth">
+    package="app.contrasleuth">
 
     <!-- Permissions -->
     <uses-permission android:name="android.permission.INTERNET" /> <!-- Camera, Photos, input file -->
@@ -31,12 +30,11 @@
         <service
             android:name=".MyService"
             android:enabled="true"
-            android:exported="false"
-            android:foregroundServiceType="location"></service>
+            android:exported="true"></service>
 
         <activity
             android:name=".MainActivity"
-            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|locale"
+            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|locale|smallestScreenSize|screenLayout|uiMode"
             android:label="@string/title_activity_main"
             android:launchMode="singleTask"
             android:theme="@style/AppTheme.NoActionBarLaunch">
@@ -56,7 +54,7 @@
         </activity>
 
         <provider
-            android:name="android.support.v4.content.FileProvider"
+            android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"
             android:exported="false"
             android:grantUriPermissions="true">

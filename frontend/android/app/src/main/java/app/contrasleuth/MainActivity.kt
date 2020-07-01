@@ -1,4 +1,4 @@
-package cf.contrasleuth
+package app.contrasleuth
 
 import android.Manifest
 import android.annotation.TargetApi
@@ -8,9 +8,9 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.os.Bundle
-import android.support.v4.app.ActivityCompat
-import android.support.v4.content.LocalBroadcastManager
 import android.util.Log
+import androidx.core.app.ActivityCompat
+import androidx.localbroadcastmanager.content.LocalBroadcastManager
 import com.getcapacitor.*
 import org.json.JSONObject
 import java.util.*

@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">frontend</string>
-    <string name="title_activity_main">frontend</string>
-    <string name="package_name">cf.contrasleuth</string>
-    <string name="custom_url_scheme">cf.contrasleuth</string>
+    <string name="app_name">Contrasleuth</string>
+    <string name="title_activity_main">Contrasleuth</string>
+    <string name="package_name">app.contrasleuth</string>
+    <string name="custom_url_scheme">app.contrasleuth</string>
 </resources>
