@@ -4,12 +4,12 @@ edition = "2018"
 name = "contrasleuth"
 version = "0.1.0"
 [build-dependencies]
-capnpc = "0.10.2"
+capnpc = "0.13.0"
 
 [dependencies]
 async-std = { version = "1.6.2", features = ["unstable"] }
-capnp = "0.12.1"
-capnp-rpc = "0.12.0"
+capnp = "0.13.3"
+capnp-rpc = "0.13.1"
 checked = "0.5.0"
 chrono = "0.4.10"
 clap = "2.33.0"
