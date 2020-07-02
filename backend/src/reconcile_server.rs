@@ -87,12 +87,11 @@ pub async fn init_server(
     on_disk_tx: Sender<OnDisk>,
     reconciliation_intent: std::rc::Rc<RwLock<MPMCManualResetEvent>>,
 ) -> Result<(), capnp::Error> {
-    let reconcile = Reconcile::ToClient::new(ReconcileRPCServer::new(
+    let reconcile: Reconcile::Client = capnp_rpc::new_client(ReconcileRPCServer::new(
         in_memory_tx,
         on_disk_tx,
         reconciliation_intent,
-    ))
-    .into_client::<capnp_rpc::Server>();
+    ));
     stream.set_nodelay(true)?;
     let (reader, writer) = stream.split();
     let network = twoparty::VatNetwork::new(

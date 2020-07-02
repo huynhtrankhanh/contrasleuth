@@ -37,7 +37,10 @@ pub async fn get_one_after_counter(
 ) -> Option<(Arc<Vec<u8>>, u128)> {
     let (tx1, rx1) = channel(1);
     tx.send(InMemory::GetOneAfterCounter(counter, tx1)).await;
-    rx1.recv().await
+    match rx1.recv().await {
+        Ok(it) => Some(it),
+        Err(_) => None
+    }
 }
 
 pub async fn message_exists(tx: &Sender<InMemory>, hash: Arc<Vec<u8>>) -> bool {
@@ -70,7 +73,7 @@ pub async fn in_memory(
     map_hash_to_counter: &RwLock<HashMap<Arc<Vec<u8>>, u128>>,
     map_hash_to_expiration_time: &RwLock<HashMap<Arc<Vec<u8>>, i64>>,
 ) {
-    while let Some(command) = rx.recv().await {
+    while let Ok(command) = rx.recv().await {
         match command {
             InMemory::GetOneAfterCounter(counter, tx) => {
                 let acquired = map_counter_to_hash.read().await;
@@ -238,7 +241,7 @@ pub async fn on_disk(
     // It is better to execute SQLite operations sequentially. SQLite locks the database
     // during an operation, so there is nothing gained from spawning dedicated tasks for
     // each operation.
-    while let Some(command) = rx.recv().await {
+    while let Ok(command) = rx.recv().await {
         match command {
             OnDisk::GetMessage(hash, tx) => {
                 let now = Utc::now().timestamp();

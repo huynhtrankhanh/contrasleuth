@@ -327,7 +327,7 @@ pub async fn attempt_parse(command_tx: &Sender<Command>, line: &str) -> bool {
             let (tx, rx) = channel(1);
             lookup_public_half(&command_tx, first_ten_bytes, tx).await;
             let mut public_halves = Vec::new();
-            while let Some(public_half) = rx.recv().await {
+            while let Ok(public_half) = rx.recv().await {
                 public_halves.push(PublicHalf {
                     public_encryption_key: public_half.public_encryption_key,
                     public_signing_key: public_half.public_signing_key,
@@ -353,7 +353,7 @@ pub async fn attempt_parse(command_tx: &Sender<Command>, line: &str) -> bool {
             let inboxes = {
                 let mut inboxes = Vec::new();
 
-                while let Some(inbox) = inbox_rx.recv().await {
+                while let Ok(inbox) = inbox_rx.recv().await {
                     inboxes.push(Inbox {
                         global_id: inbox.global_id,
                         label: inbox.label,
@@ -373,7 +373,7 @@ pub async fn attempt_parse(command_tx: &Sender<Command>, line: &str) -> bool {
             let messages = {
                 let mut messages = Vec::new();
 
-                while let Some(stored_message) = stored_message_rx.recv().await {
+                while let Ok(stored_message) = stored_message_rx.recv().await {
                     messages.push(StoredMessage {
                         sender: PublicHalf {
                             public_encryption_key: stored_message
@@ -424,7 +424,7 @@ pub async fn attempt_parse(command_tx: &Sender<Command>, line: &str) -> bool {
             let contacts = {
                 let mut contacts = Vec::new();
 
-                while let Some(contact) = contact_rx.recv().await {
+                while let Ok(contact) = contact_rx.recv().await {
                     contacts.push(Contact {
                         global_id: contact.global_id,
                         label: contact.contact.label,
@@ -438,7 +438,7 @@ pub async fn attempt_parse(command_tx: &Sender<Command>, line: &str) -> bool {
             let inbox_expiration_times = {
                 let mut inbox_expiration_times = Vec::new();
 
-                while let Some(inbox_expiration_time) = inbox_expiration_time_rx.recv().await {
+                while let Ok(inbox_expiration_time) = inbox_expiration_time_rx.recv().await {
                     inbox_expiration_times.push(InboxExpirationTime {
                         inbox_id: inbox_expiration_time.inbox_id,
                         expiration_time: inbox_expiration_time.expiration_time,
@@ -460,7 +460,7 @@ pub async fn attempt_parse(command_tx: &Sender<Command>, line: &str) -> bool {
 }
 
 pub async fn state_derive_ipc(event_rx: Receiver<Event>) {
-    while let Some(event) = event_rx.recv().await {
+    while let Ok(event) = event_rx.recv().await {
         match event {
             Event::Message {
                 message,

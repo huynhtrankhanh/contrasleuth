@@ -179,7 +179,7 @@ fn main() {
         None => {
             spawner
                 .spawn_local_obj(
-                    Box::new(async move { while let Some(_) = mutate_rx.recv().await {} }).into(),
+                    Box::new(async move { while let Ok(_) = mutate_rx.recv().await {} }).into(),
                 )
                 .unwrap();
             None
