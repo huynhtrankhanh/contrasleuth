@@ -310,7 +310,7 @@ fn multiplex(
     {
         let multiplexed_tx = multiplexed_tx.clone();
         task::spawn(async move {
-            while let Some(mutation) = mutate_rx.recv().await {
+            while let Ok(mutation) = mutate_rx.recv().await {
                 multiplexed_tx.send(Multiplexed::Mutation(mutation)).await;
             }
         });
@@ -318,7 +318,7 @@ fn multiplex(
     {
         let multiplexed_tx = multiplexed_tx.clone();
         task::spawn(async move {
-            while let Some(command) = command_rx.recv().await {
+            while let Ok(command) = command_rx.recv().await {
                 multiplexed_tx.send(Multiplexed::Command(command)).await;
             }
         });
@@ -701,7 +701,7 @@ pub async fn derive(
     let (multiplexed_tx, multiplexed_rx) = channel(1);
     multiplex(multiplexed_tx, mutate_rx, command_rx);
 
-    while let Some(multiplexed) = multiplexed_rx.recv().await {
+    while let Ok(multiplexed) = multiplexed_rx.recv().await {
         match multiplexed {
             Multiplexed::Mutation(mutation) => match mutation {
                 Mutation::Insert(hash) => {
@@ -1546,9 +1546,9 @@ mod tests {
                         )
                         .await;
 
-                        while let Some(_) = drained1_rx.recv().await {}
+                        while let Ok(_) = drained1_rx.recv().await {}
 
-                        if let Some(message) = stored_message_rx.recv().await {
+                        if let Ok(message) = stored_message_rx.recv().await {
                             assert_message_content(message.message);
                             assert_eq!(message.expiration_time.unwrap(), now + 3);
                             assert_eq!(message.inbox_id, inbox_id);
@@ -1558,12 +1558,12 @@ mod tests {
                             }
                         }
 
-                        if let Some(_) = stored_message_rx.recv().await {
+                        if let Ok(_) = stored_message_rx.recv().await {
                             panic!();
                         }
 
-                        while let Some(_) = drained2_rx.recv().await {}
-                        while let Some(_) = drained3_rx.recv().await {}
+                        while let Ok(_) = drained2_rx.recv().await {}
+                        while let Ok(_) = drained3_rx.recv().await {}
                     }
 
                     use std::time::Duration;
@@ -1586,14 +1586,14 @@ mod tests {
                         )
                         .await;
 
-                        while let Some(_) = drained1_rx.recv().await {}
+                        while let Ok(_) = drained1_rx.recv().await {}
 
-                        if let Some(_) = stored_message_rx.recv().await {
+                        if let Ok(_) = stored_message_rx.recv().await {
                             panic!();
                         }
 
-                        while let Some(_) = drained2_rx.recv().await {}
-                        while let Some(_) = drained3_rx.recv().await {}
+                        while let Ok(_) = drained2_rx.recv().await {}
+                        while let Ok(_) = drained3_rx.recv().await {}
                     };
 
                     let now = Utc::now().timestamp();
@@ -1725,9 +1725,9 @@ mod tests {
                         inbox_rx.recv().await.unwrap().label,
                         "Lorem Ipsum".to_string()
                     );
-                    while let Some(_) = drained1_rx.recv().await {}
-                    while let Some(_) = drained2_rx.recv().await {}
-                    while let Some(_) = drained3_rx.recv().await {}
+                    while let Ok(_) = drained1_rx.recv().await {}
+                    while let Ok(_) = drained2_rx.recv().await {}
+                    while let Ok(_) = drained3_rx.recv().await {}
 
                     delete_inbox(&command_tx, inbox_id.clone()).await;
                     let (inbox_tx, inbox_rx) = channel(1);
@@ -1742,14 +1742,14 @@ mod tests {
                         drained2_tx,
                     )
                     .await;
-                    if let Some(_) = inbox_rx.recv().await {
+                    if let Ok(_) = inbox_rx.recv().await {
                         panic!();
                     }
-                    if let Some(_) = stored_message_rx.recv().await {
+                    if let Ok(_) = stored_message_rx.recv().await {
                         panic!();
                     }
-                    while let Some(_) = drained1_rx.recv().await {}
-                    while let Some(_) = drained2_rx.recv().await {}
+                    while let Ok(_) = drained1_rx.recv().await {}
+                    while let Ok(_) = drained2_rx.recv().await {}
 
                     let publichalf1 = PublicHalf {
                         public_encryption_key: box_::gen_keypair().0.as_ref().to_vec(),
@@ -1785,10 +1785,10 @@ mod tests {
                         drained3_tx,
                     )
                     .await;
-                    while let Some(_) = drained1_rx.recv().await {}
-                    while let Some(_) = drained2_rx.recv().await {}
+                    while let Ok(_) = drained1_rx.recv().await {}
+                    while let Ok(_) = drained2_rx.recv().await {}
                     let contact = contact_rx.recv().await.unwrap();
-                    while let Some(_) = drained3_rx.recv().await {}
+                    while let Ok(_) = drained3_rx.recv().await {}
                     assert_eq!(contact.global_id, id);
                     assert_eq!(contact.contact.label, "New Label".to_string());
 
@@ -1805,12 +1805,12 @@ mod tests {
                         drained3_tx,
                     )
                     .await;
-                    while let Some(_) = drained1_rx.recv().await {}
-                    while let Some(_) = drained2_rx.recv().await {}
-                    if let Some(_) = contact_rx.recv().await {
+                    while let Ok(_) = drained1_rx.recv().await {}
+                    while let Ok(_) = drained2_rx.recv().await {}
+                    if let Ok(_) = contact_rx.recv().await {
                         panic!();
                     }
-                    while let Some(_) = drained3_rx.recv().await {}
+                    while let Ok(_) = drained3_rx.recv().await {}
 
                     let (inbox_id, _) = new_inbox(&command_tx, "Hello, World!".to_string()).await;
                     let entry = get_public_half_entry(&command_tx, inbox_id.clone()).await;
@@ -1849,9 +1849,9 @@ mod tests {
                         inbox_expiration_time_tx,
                     )
                     .await;
-                    while let Some(_) = drained1_rx.recv().await {}
-                    while let Some(_) = drained2_rx.recv().await {}
-                    while let Some(_) = drained3_rx.recv().await {}
+                    while let Ok(_) = drained1_rx.recv().await {}
+                    while let Ok(_) = drained2_rx.recv().await {}
+                    while let Ok(_) = drained3_rx.recv().await {}
                     let inbox_expiration_time = inbox_expiration_time_rx.recv().await.unwrap();
                     assert_eq!(inbox_expiration_time.inbox_id, inbox_id);
                     assert_eq!(inbox_expiration_time.expiration_time, now + 1);
