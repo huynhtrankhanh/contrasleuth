@@ -76,7 +76,7 @@ fn main() {
         .arg(
             Arg::with_name("dump inventory")
                 .long("dump-inventory")
-                .help("Dump inventory hashes when new messages get inserted")
+                .help("Dumps inventory hashes when new messages get inserted")
                 .takes_value(false),
         )
         .get_matches();
