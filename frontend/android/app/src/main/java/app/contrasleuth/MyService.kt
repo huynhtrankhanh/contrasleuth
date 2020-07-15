@@ -1,6 +1,7 @@
 package app.contrasleuth
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -11,9 +12,12 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.net.wifi.WifiManager
+import android.net.wifi.p2p.WifiP2pDevice
 import android.net.wifi.p2p.WifiP2pManager
 import android.net.wifi.p2p.nsd.WifiP2pDnsSdServiceInfo
+import android.net.wifi.p2p.nsd.WifiP2pDnsSdServiceRequest
 import android.os.Build
+import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
 import android.util.Log
@@ -29,6 +33,7 @@ import java.io.InputStreamReader
 // https://stackoverflow.com/questions/47531742
 class MyService : Service() {
     val TAG = "TAG"
+    val SERVICE_IDENTIFIER = "_quic-tunnel._contrasleuth-mvp"
 
     @Throws(IOException::class)
     fun getCacheFile(context: Context, filename: String): File = File(context.cacheDir, filename)
@@ -36,37 +41,109 @@ class MyService : Service() {
                 it.outputStream().use { cache -> context.assets.open(filename).use { it.copyTo(cache) } }
             }
 
+    var manager: WifiP2pManager? = null
+    var channel: WifiP2pManager.Channel? = null
+    var handler: Handler? = null
+    var runnable: Runnable? = null
+    var localBroadcastManager: LocalBroadcastManager? = null
+
+    private fun discoverServices() {
+        val manager = manager!!
+        val channel = channel!!
+        val handler = handler!!
+        val runnable = runnable!!
+
+        // Discover services
+        manager.setDnsSdResponseListeners(
+                channel,
+                WifiP2pManager.DnsSdServiceResponseListener { _, _, _ -> // Handle detected service
+                    Log.wtf(TAG, "Detected a service")
+                },
+                object : WifiP2pManager.DnsSdTxtRecordListener {
+                    override fun onDnsSdTxtRecordAvailable(fullDomainName: String, txtRecordMap: MutableMap<String, String>, srcDevice: WifiP2pDevice?) {
+                        if (fullDomainName != "_quic-tunnel._contrasleuth-mvp._quic-tunnel._contrasleuth-mvp.local.") {
+                            return
+                        }
+
+                        val value = txtRecordMap["payload"]
+                        if (value != null) {
+                            Log.wtf("TAG", value)
+                            return
+                        }
+                        Log.wtf(TAG, "Can't retrieve service info")
+                    }
+                }
+        )
+
+        val serviceRequest = WifiP2pDnsSdServiceRequest.newInstance()
+        manager.removeServiceRequest(channel, serviceRequest,
+                object : WifiP2pManager.ActionListener {
+                    override fun onSuccess() {
+                        manager.addServiceRequest(channel, serviceRequest,
+                                object : WifiP2pManager.ActionListener {
+                                    @SuppressLint("MissingPermission")
+                                    override fun onSuccess() {
+                                        manager.discoverServices(channel,
+                                                object : WifiP2pManager.ActionListener {
+                                                    override fun onSuccess() {
+                                                        Log.wtf(TAG, "discoverServices call succeeded")
+                                                        handler.postDelayed(runnable, 120000)
+
+                                                    }
+
+                                                    override fun onFailure(error: Int) {
+                                                        Log.wtf(TAG, "discoverServices call failed")
+                                                    }
+                                                })
+                                    }
+
+                                    override fun onFailure(error: Int) {
+                                        Log.wtf(TAG, "Failed to add service request")
+                                    }
+                                }
+                        )
+                    }
+
+                    override fun onFailure(reason: Int) {
+                        Log.wtf(TAG, "Failed to remove service request")
+                    }
+                }
+        )
+    }
+
     // Adapted from https://android.googlesource.com/platform/development/+/master/samples/WiFiDirectDemo/src/com/example/android/wifidirect/WiFiDirectActivity.java
-    fun establishP2p() {
-        if (!getPackageManager().hasSystemFeature(PackageManager.FEATURE_WIFI_DIRECT)) {
-            Log.e(TAG, "Wi-Fi Direct is not supported by this device.")
+    private fun establishP2p() {
+        if (!packageManager.hasSystemFeature(PackageManager.FEATURE_WIFI_DIRECT)) {
+            Log.wtf(TAG, "Wi-Fi Direct is not supported by this device.")
             return
         }
 
-        val appContext = getApplicationContext()
+        val appContext = applicationContext
 
         val wifiManager = appContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
         if (wifiManager == null) {
-            Log.e(TAG, "Cannot get Wi-Fi system service.")
+            Log.wtf(TAG, "Cannot get Wi-Fi system service.")
             return
         }
 
         if (!wifiManager.isP2pSupported()) {
-            Log.e(TAG, "Wi-Fi Direct is not supported by the hardware or Wi-Fi is off.")
+            Log.wtf(TAG, "Wi-Fi Direct is not supported by the hardware or Wi-Fi is off.")
             return
         }
 
-        val manager = appContext.getSystemService(Context.WIFI_P2P_SERVICE) as WifiP2pManager
+        manager = appContext.getSystemService(Context.WIFI_P2P_SERVICE) as WifiP2pManager
 
         if (manager == null) {
-            Log.e(TAG, "Cannot get Wi-Fi Direct system service.")
+            Log.wtf(TAG, "Cannot get Wi-Fi Direct system service.")
             return
         }
 
-        val channel = manager.initialize(this, Looper.getMainLooper(), null)
+        val manager = manager!!
+
+        channel = manager.initialize(this, Looper.getMainLooper(), null)
 
         if (channel == null) {
-            Log.e(TAG, "Cannot initialize Wi-Fi Direct.")
+            Log.wtf(TAG, "Cannot initialize Wi-Fi Direct.")
             return
         }
 
@@ -83,62 +160,82 @@ class MyService : Service() {
                 val action: String = intent.action!!
                 when (action) {
                     WifiP2pManager.WIFI_P2P_STATE_CHANGED_ACTION -> {
-                        // Check to see if Wi-Fi is enabled and notify appropriate activity.
+                        Log.wtf(TAG, "Wi-Fi P2P state changed")
                     }
                     WifiP2pManager.WIFI_P2P_PEERS_CHANGED_ACTION -> {
-                        // Call WifiP2pManager.requestPeers() to get a list of current peers.
+                        Log.wtf(TAG, "Wi-Fi P2P peers changed")
                     }
                     WifiP2pManager.WIFI_P2P_CONNECTION_CHANGED_ACTION -> {
-                        // Respond to new connection or disconnections.
+                        Log.wtf(TAG, "Wi-Fi P2P connection changed")
                     }
                     WifiP2pManager.WIFI_P2P_THIS_DEVICE_CHANGED_ACTION -> {
-                        // Respond to this device's wifi state changing.
+                        Log.wtf(TAG, "The Wi-Fi P2P details of this device have changed")
                     }
                 }
             }
         }, intentFilter)
 
-        // Clear local services before broadcasting: https://stackoverflow.com/a/31641302
-        manager.clearLocalServices(channel, object : WifiP2pManager.ActionListener {
-            override fun onSuccess() {
-                // ACCESS_FINE_LOCATION permission was already requested in main.
-                if (ActivityCompat.checkSelfPermission(applicationContext, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-                    return
-                }
+        val localBroadcastManager = localBroadcastManager!!
 
-                val record = mapOf("key" to "value")
-                val info = WifiP2pDnsSdServiceInfo.newInstance(
-                        "_quic-tunnel._contrasleuth-mvp",
-                        "_quic-tunnel._contrasleuth-mvp",
-                        record
-                )
-
-                manager.addLocalService(channel, info, object : WifiP2pManager.ActionListener {
+        val receiver: BroadcastReceiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context, intent: Intent) {
+                val payload = intent.getStringExtra("payload")
+                // Clear local services before broadcasting: https://stackoverflow.com/a/31641302
+                manager.clearLocalServices(channel, object : WifiP2pManager.ActionListener {
+                    @SuppressLint("MissingPermission")
                     override fun onSuccess() {
-                        // Handle success.
+                        Log.wtf(TAG, "Cleared local services")
+
+                        val record = mapOf("payload" to payload)
+                        val info = WifiP2pDnsSdServiceInfo.newInstance(
+                                SERVICE_IDENTIFIER,
+                                SERVICE_IDENTIFIER,
+                                record
+                        )
+
+                        manager.addLocalService(channel, info, object : WifiP2pManager.ActionListener {
+                            override fun onSuccess() {
+                                Log.wtf(TAG, "Added local service")
+                            }
+
+                            override fun onFailure(reason: Int) {
+                                Log.wtf(TAG, "Failed to add local service")
+                            }
+                        })
                     }
 
                     override fun onFailure(reason: Int) {
                         // Handle failure.
+                        Log.wtf(TAG, "Failed to clear services")
                     }
                 })
             }
+        }
 
-            override fun onFailure(reason: Int) {
-                // Handle failure.
-            }
-        })
+        localBroadcastManager.registerReceiver(receiver, IntentFilter("broadcast packet"))
+
+        handler = Handler()
+
+        runnable = Runnable { discoverServices() }
+        discoverServices()
+
+        broadcastPacket("Hello, World!")
+    }
+
+    fun broadcastPacket(payload: String) {
+        val intent = Intent("broadcast packet")
+        intent.putExtra("payload", payload)
+        val localBroadcastManager = localBroadcastManager!!
+        localBroadcastManager.sendBroadcast(intent)
     }
 
     override fun onCreate() {
-        establishP2p();
-
         val channelId =
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    createNotificationChannel("my_service", "Contrasleuth")
-                } else {
-                    ""
-                }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                createNotificationChannel("my_service", "Contrasleuth")
+            } else {
+                ""
+            }
 
         val notification = NotificationCompat.Builder(this, channelId)
                 .setOngoing(true).build()
@@ -164,7 +261,8 @@ class MyService : Service() {
         val outputStream = sh.outputStream
         val bufferedInputStream = BufferedReader(InputStreamReader(sh.inputStream))
 
-        val localBroadcastManager = LocalBroadcastManager.getInstance(this)
+        localBroadcastManager = LocalBroadcastManager.getInstance(this)
+        establishP2p();
 
         val thread1: Thread = object : Thread() {
             override fun run() {
@@ -172,6 +270,9 @@ class MyService : Service() {
                     val line = bufferedInputStream.readLine() ?: break
                     val intent = Intent("stdout line")
                     intent.putExtra("line", line)
+
+                    val localBroadcastManager = localBroadcastManager!!
+
                     localBroadcastManager.sendBroadcast(intent)
                 }
             }
@@ -188,6 +289,8 @@ class MyService : Service() {
                         outputStream.flush()
                     }
                 }
+
+                val localBroadcastManager = localBroadcastManager!!
 
                 localBroadcastManager.registerReceiver(receiver, IntentFilter("stdin line"))
             }
