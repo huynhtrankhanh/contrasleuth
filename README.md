@@ -1,6 +1,8 @@
 # Contrasleuth
 _This README file has been temporarily blanked._
 
+**Note:** This repository must be cloned **recursively.**
+
 # License
 
 MIT License
