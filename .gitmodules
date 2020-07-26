@@ -1,0 +1,3 @@
+[submodule "userspace-ip/lwip"]
+	path = userspace-ip/lwip
+	url = https://git.savannah.nongnu.org/git/lwip.git
