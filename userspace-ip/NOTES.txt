@@ -1,2 +1,0 @@
-stubbed out functions: sio_tryread and sio_open in netif/sio.c
-LWIP_PLATFORM_ASSERT macro in lwipopts.h stubbed out
