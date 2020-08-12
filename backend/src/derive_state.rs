@@ -1570,7 +1570,7 @@ mod tests {
                     task::sleep(Duration::from_millis(3100)).await;
 
                     // Consume expiration event
-                    event_rx.recv().await;
+                    event_rx.recv().await.unwrap();
 
                     let assert_no_messages = || async {
                         let (drained1_tx, drained1_rx) = channel(1);
