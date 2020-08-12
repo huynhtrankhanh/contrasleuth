@@ -44,7 +44,7 @@ pub fn decrypt(ciphertext: &[u8], private_key: &[u8]) -> Option<Vec<u8>> {
     let mut advance = |count: usize| {
         let left = counter;
         counter += count;
-        if counter >= ciphertext.len() {
+        if counter > ciphertext.len() {
             return None;
         }
         Some(&ciphertext[left..counter])
