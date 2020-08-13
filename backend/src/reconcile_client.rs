@@ -1,20 +1,20 @@
 use crate::inventory::{get_message, get_one_after_counter, InMemory, OnDisk};
 use crate::mpmc_manual_reset_event::MPMCManualResetEvent;
 use crate::reconcile_capnp::reconcile as Reconcile;
+use async_std::io::{Read, Write};
 use async_std::sync::{RwLock, Sender};
 use capnp_rpc::{rpc_twoparty_capnp, twoparty, RpcSystem};
 use futures::task::LocalSpawn;
 use futures::AsyncReadExt;
 use futures_intrusive::channel::LocalUnbufferedChannel;
 
-pub async fn reconcile(
-    stream: async_std::net::TcpStream,
+pub async fn reconcile<T: Read + Write + 'static>(
+    stream: T,
     in_memory_tx: &Sender<InMemory>,
     on_disk_tx: &Sender<OnDisk>,
     spawner: futures::executor::LocalSpawner,
     reconciliation_intent: std::rc::Rc<RwLock<MPMCManualResetEvent>>,
 ) -> Result<(), capnp::Error> {
-    stream.set_nodelay(true)?;
     let (reader, writer) = stream.split();
     let network = twoparty::VatNetwork::new(
         reader,
