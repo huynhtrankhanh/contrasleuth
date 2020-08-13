@@ -57,7 +57,7 @@ const prepare = (() => {
       stdin,
       stdout
     } = spawn(
-      `../backend/target/release/contrasleuth --database /tmp/${randomDBName}.sqlite --address 127.0.0.1:0 --reverse-address 127.0.0.1:0 --dump-inventory`,
+      `../backend/target/debug/contrasleuth --database /tmp/${randomDBName}.sqlite --address 127.0.0.1:0 --reverse-address 127.0.0.1:0 --dump-inventory`,
       { shell: true }
     );
 
