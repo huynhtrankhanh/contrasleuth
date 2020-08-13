@@ -39,7 +39,7 @@ pub async fn get_one_after_counter(
     tx.send(InMemory::GetOneAfterCounter(counter, tx1)).await;
     match rx1.recv().await {
         Ok(it) => Some(it),
-        Err(_) => None
+        Err(_) => None,
     }
 }
 
@@ -227,7 +227,7 @@ pub async fn purge_expired(
     }
 }
 
-/// This task is meant to be spawned. It executes blocking DB operations.
+/// This task executes blocking DB operations.
 pub async fn on_disk(
     rx: Receiver<OnDisk>,
     counter: &Mutex<u128>,
