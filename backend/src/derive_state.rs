@@ -434,9 +434,15 @@ pub async fn derive(
     init(include_str!(
         "../sql/A. Schema/Initial schema for frontend - 10. Index message derivation table.sql"
     ));
-    init(include_str!("../sql/A. Schema/Initial schema for frontend - 11. Index message derivation table (Inbox ID).sql"));
-    init(include_str!("../sql/A. Schema/Initial schema for frontend - 12. Index message derivation table (Global ID).sql"));
-    init(include_str!("../sql/A. Schema/Initial schema for frontend - 13. Index message derivation table (Inventory ID).sql"));
+    init(include_str!(
+        "../sql/A. Schema/Initial schema for frontend - 11. Index message derivation table (Inbox ID).sql"
+    ));
+    init(include_str!(
+        "../sql/A. Schema/Initial schema for frontend - 12. Index message derivation table (Global ID).sql"
+    ));
+    init(include_str!(
+        "../sql/A. Schema/Initial schema for frontend - 13. Index message derivation table (Inventory ID).sql"
+    ));
     fn parse(plaintext: &mut &[u8]) -> Option<Message> {
         let deserialized =
             match capnp::serialize::read_message(plaintext, capnp::message::ReaderOptions::new()) {
