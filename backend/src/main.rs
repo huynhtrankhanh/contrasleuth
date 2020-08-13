@@ -62,8 +62,7 @@ fn main() {
                 .long("address")
                 .value_name("ADDRESS")
                 .help("Sets the TCP listen address")
-                .takes_value(true)
-                .required(true),
+                .takes_value(true),
         )
         .arg(
             Arg::with_name("reverse client address")
@@ -79,6 +78,19 @@ fn main() {
                 .help("Dumps inventory hashes when new messages get inserted")
                 .takes_value(false),
         )
+        .arg(
+            Arg::with_name("unix socket")
+                .long("unix-socket")
+                .value_name("PATH")
+                .help("Unix socket equivalent of the `address` parameter")
+                .takes_value(true),
+        )
+        .arg(
+            Arg::with_name("reverse client unix socket")
+                .long("reverse-unix-socket")
+                .help("Unix socket equivalent of the `reverse-address` parameter")
+                .takes_value(true),
+        )
         .get_matches();
 
     let database_path = matches.value_of("database").unwrap().to_owned();
@@ -88,14 +100,20 @@ fn main() {
         None => None,
     };
 
-    let address = matches.value_of("address").unwrap().to_owned();
+    let address = match matches.value_of("address") {
+        Some(value) => Some(value.to_owned()),
+        None => None,
+    };
 
-    let parsed_address = match address.parse::<SocketAddr>() {
-        Ok(address) => address,
-        Err(_) => {
-            log::fatal("TCP listen address is invalid");
-            exit(1);
-        }
+    let parsed_address = match address.to_owned() {
+        Some(address) => match address.parse::<SocketAddr>() {
+            Ok(address) => Some(address),
+            Err(_) => {
+                log::fatal("TCP listen address is invalid");
+                exit(1);
+            }
+        },
+        None => None,
     };
 
     let reverse_address = match matches.value_of("reverse client address") {
@@ -117,10 +135,13 @@ fn main() {
     let dump_inventory = matches.is_present("dump inventory");
 
     log::welcome("Standard streams are being used for interprocess communication");
-    log::notice(format!(
-        "Listening for incoming client connections on {}",
-        address
-    ));
+
+    if let Some(address) = address.to_owned() {
+        log::notice(format!(
+            "Listening for incoming client connections on {}",
+            address
+        ));
+    }
 
     if let Some(address) = reverse_address.to_owned() {
         log::notice(format!(
@@ -205,7 +226,8 @@ fn main() {
     ));
 
     let reconciliation_intent_clone = reconciliation_intent.clone();
-    {
+
+    if let Some(parsed_address) = parsed_address {
         let in_memory_tx = in_memory_tx.clone();
         let on_disk_tx = on_disk_tx.clone();
         spawner
@@ -216,7 +238,7 @@ fn main() {
                         Err(error) => {
                             log::fatal(format!(
                                 "Failed to bind to {} due to error {:?}",
-                                address, error
+                                address.unwrap(), error
                             ));
                             exit(1);
                         }
@@ -273,15 +295,16 @@ fn main() {
             )
             .unwrap();
     }
+
     let spawner_clone = spawner.clone();
     let reconciliation_intent_clone = reconciliation_intent.clone();
-    if let Some(address) = parsed_reverse_address {
+    if let Some(parsed_reverse_address) = parsed_reverse_address {
         let in_memory_tx = in_memory_tx.clone();
         let on_disk_tx = on_disk_tx.clone();
         spawner
             .spawn_local_obj(
                 Box::new(async move {
-                    let listener = match async_std::net::TcpListener::bind(&address).await {
+                    let listener = match async_std::net::TcpListener::bind(&parsed_reverse_address).await {
                         Ok(listener) => listener,
                         Err(error) => {
                             log::fatal(format!(
