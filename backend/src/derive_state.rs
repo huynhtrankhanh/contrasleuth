@@ -392,7 +392,7 @@ fn calculate_public_half_id(public_encryption_key: &[u8], public_signing_key: &[
     result.to_vec()
 }
 
-/// This task is meant to be spawned. It executes blocking DB operations.
+/// This task executes blocking DB operations.
 pub async fn derive(
     in_memory_tx: Sender<InMemory>,
     on_disk_tx: Sender<OnDisk>,
