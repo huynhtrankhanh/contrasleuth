@@ -15,7 +15,7 @@ test.before(
   t =>
     new Promise((resolve, reject) => {
       t.timeout(3600000);
-      const buildProcess = spawn("cd ../backend && cargo build --release", {
+      const buildProcess = spawn("cd ../backend && cargo build", {
         shell: true
       });
       buildProcess.stdout.on("data", data => process.stdout.write(data));
