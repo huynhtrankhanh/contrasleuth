@@ -32,6 +32,12 @@ pub fn connect<F1, F2, F3>(
                         return;
                     }
                 };
+
+                if let Err(error) = stream.set_nodelay(true) {
+                    on_connection_failed(error);
+                    return;
+                };
+
                 match reconcile_client::reconcile(
                     stream,
                     &in_memory_tx,
@@ -75,6 +81,12 @@ pub fn reverse_connect<F1, F2, F3>(
                         return;
                     }
                 };
+
+                if let Err(error) = stream.set_nodelay(true) {
+                    on_connection_failed(error);
+                    return;
+                }
+
                 match reconcile_server::init_server(
                     stream,
                     in_memory_tx,

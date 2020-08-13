@@ -236,6 +236,12 @@ fn main() {
                                 spawner_clone2
                                     .spawn_local_obj(
                                         Box::new(async move {
+                                            if let Err(error) = socket.set_nodelay(true) {
+                                                log::warning(format!(
+                                                    "Error occurred while accepting an incoming connection: {:?}",
+                                                    error
+                                                ));
+                                            };
                                             if let Err(error) = reconcile_server::init_server(
                                                 socket,
                                                 in_memory_tx,
@@ -301,6 +307,12 @@ fn main() {
                                 spawner_clone2
                                     .spawn_local_obj(
                                         Box::new(async move {
+                                            if let Err(error) = socket.set_nodelay(true) {
+                                                log::warning(format!(
+                                                    "Error occurred while accepting an incoming connection: {:?}",
+                                                    error
+                                                ));
+                                            };
                                             if let Err(error) = reconcile_client::reconcile(
                                                 socket,
                                                 &in_memory_tx,

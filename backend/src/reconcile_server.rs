@@ -2,6 +2,7 @@ use crate::inventory::{insert_message, message_exists, InMemory, Message, OnDisk
 use crate::message_hash::message_hash;
 use crate::mpmc_manual_reset_event::MPMCManualResetEvent;
 use crate::reconcile_capnp::reconcile as Reconcile;
+use async_std::io::{Read, Write};
 use async_std::sync::{RwLock, Sender};
 use capnp::capability::Promise;
 use capnp::Error;
@@ -81,8 +82,8 @@ impl Reconcile::Server for ReconcileRPCServer {
     }
 }
 
-pub async fn init_server(
-    stream: async_std::net::TcpStream,
+pub async fn init_server<T: Read + Write + 'static>(
+    stream: T,
     in_memory_tx: Sender<InMemory>,
     on_disk_tx: Sender<OnDisk>,
     reconciliation_intent: std::rc::Rc<RwLock<MPMCManualResetEvent>>,
@@ -92,7 +93,6 @@ pub async fn init_server(
         on_disk_tx,
         reconciliation_intent,
     ));
-    stream.set_nodelay(true)?;
     let (reader, writer) = stream.split();
     let network = twoparty::VatNetwork::new(
         reader,
