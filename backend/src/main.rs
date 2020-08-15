@@ -93,6 +93,13 @@ fn main() {
         )
         .get_matches();
 
+    if !cfg!(unix) {
+        if matches.is_present("unix socket") || matches.is_present("reverse client unix socket") {
+            log::fatal("Unix sockets are not available on your platform");
+            exit(1);
+        }
+    }
+
     let database_path = matches.value_of("database").unwrap().to_owned();
 
     let frontend_database_path = match matches.value_of("frontend database") {
@@ -129,6 +136,16 @@ fn main() {
                 exit(1);
             }
         },
+        None => None,
+    };
+
+    let unix_socket = match matches.value_of("unix-socket") {
+        Some(value) => Some(value.to_owned()),
+        None => None,
+    };
+
+    let reverse_unix_socket = match matches.value_of("reverse client unix socket") {
+        Some(value) => Some(value.to_owned()),
         None => None,
     };
 
@@ -263,6 +280,7 @@ fn main() {
                                                     "Error occurred while accepting an incoming connection: {:?}",
                                                     error
                                                 ));
+                                                return;
                                             };
                                             if let Err(error) = reconcile_server::init_server(
                                                 socket,
@@ -335,6 +353,7 @@ fn main() {
                                                     "Error occurred while accepting an incoming connection: {:?}",
                                                     error
                                                 ));
+                                                return;
                                             };
                                             if let Err(error) = reconcile_client::reconcile(
                                                 socket,
@@ -367,6 +386,142 @@ fn main() {
                 .into(),
             )
             .unwrap();
+    }
+
+    #[cfg(unix)]
+    {
+        let spawner_clone = spawner.clone();
+        let reconciliation_intent_clone = reconciliation_intent.clone();
+
+        if let Some(unix_socket) = unix_socket {
+            let in_memory_tx = in_memory_tx.clone();
+            let on_disk_tx = on_disk_tx.clone();
+            spawner
+                .spawn_local_obj(
+                    Box::new(async move {
+                        let listener = match async_std::os::unix::net::UnixListener::bind(
+                            &unix_socket,
+                        )
+                        .await
+                        {
+                            Ok(listener) => listener,
+                            Err(error) => {
+                                log::fatal(format!(
+                                    "Failed to bind to {} due to error {:?}",
+                                    unix_socket, error
+                                ));
+                                exit(1);
+                            }
+                        };
+                        let mut incoming = listener.incoming();
+                        let spawner_clone2 = spawner_clone.clone();
+                        while let Some(socket) = incoming.next().await {
+                            match socket {
+                                Ok(socket) => {
+                                    let in_memory_tx = in_memory_tx.clone();
+                                    let on_disk_tx = on_disk_tx.clone();
+                                    let reconciliation_intent_clone =
+                                        reconciliation_intent_clone.clone();
+                                    spawner_clone2
+                                        .spawn_local_obj(
+                                            Box::new(async move {
+                                                if let Err(error) = reconcile_server::init_server(
+                                                    socket,
+                                                    in_memory_tx,
+                                                    on_disk_tx,
+                                                    reconciliation_intent_clone.clone(),
+                                                )
+                                                .await
+                                                {
+                                                    log::warning(format!(
+                                                        "Error occurred while reconciling: {:?}",
+                                                        error
+                                                    ));
+                                                }
+                                            })
+                                            .into(),
+                                        )
+                                        .unwrap();
+                                }
+                                Err(error) => {
+                                    log::warning(format!(
+                                        "Unexpected error while accepting incoming socket: {:?}",
+                                        error
+                                    ));
+                                }
+                            }
+                        }
+                    })
+                    .into(),
+                )
+                .unwrap();
+        }
+        let spawner_clone = spawner.clone();
+        let reconciliation_intent_clone = reconciliation_intent.clone();
+        if let Some(unix_socket) = reverse_unix_socket {
+            let in_memory_tx = in_memory_tx.clone();
+            let on_disk_tx = on_disk_tx.clone();
+            spawner
+                .spawn_local_obj(
+                    Box::new(async move {
+                        let listener = match async_std::os::unix::net::UnixListener::bind(
+                            &unix_socket,
+                        )
+                        .await
+                        {
+                            Ok(listener) => listener,
+                            Err(error) => {
+                                log::fatal(format!(
+                                    "Failed to bind to {} due to error {:?}",
+                                    unix_socket, error
+                                ));
+                                exit(1);
+                            }
+                        };
+                        let mut incoming = listener.incoming();
+                        let spawner_clone2 = spawner_clone.clone();
+                        while let Some(socket) = incoming.next().await {
+                            match socket {
+                                Ok(socket) => {
+                                    let spawner_clone3 = spawner_clone2.clone();
+                                    let reconciliation_intent = reconciliation_intent_clone.clone();
+                                    let in_memory_tx = in_memory_tx.clone();
+                                    let on_disk_tx = on_disk_tx.clone();
+                                    spawner_clone2
+                                        .spawn_local_obj(
+                                            Box::new(async move {
+                                                if let Err(error) = reconcile_client::reconcile(
+                                                    socket,
+                                                    &in_memory_tx,
+                                                    &on_disk_tx,
+                                                    spawner_clone3.clone(),
+                                                    reconciliation_intent.clone(),
+                                                )
+                                                .await
+                                                {
+                                                    log::warning(format!(
+                                                        "Error occurred while reconciling: {:?}",
+                                                        error
+                                                    ));
+                                                }
+                                            })
+                                            .into(),
+                                        )
+                                        .unwrap();
+                                }
+                                Err(error) => {
+                                    log::warning(format!(
+                                        "Unexpected error while accepting incoming socket: {:?}",
+                                        error
+                                    ));
+                                }
+                            }
+                        }
+                    })
+                    .into(),
+                )
+                .unwrap();
+        }
     }
 
     let spawner_clone = spawner.clone();
