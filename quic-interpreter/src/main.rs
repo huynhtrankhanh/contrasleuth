@@ -1,6 +1,7 @@
-use async_std::sync::{channel, RwLock};
+use async_std::sync::{channel, Mutex};
 use async_std::task;
 use futures::{future::FutureExt, select};
+use std::sync::Arc;
 
 const MAX_DATAGRAM_SIZE: usize = 1350;
 const IP_SIZE: usize = 65535;
@@ -51,10 +52,65 @@ async fn race(
     }
 }
 
+fn main() {
+    let is_client = false;
+
+    let (signal_incoming_tx, signal_incoming_rx) = channel::<()>(1);
+    let (signal_outgoing_tx, signal_outgoing_rx) = channel::<()>(1);
+    let (signal_read_outgoing_buffer_tx, signal_read_outgoing_buffer_rx) = channel::<()>(1);
+    task::block_on(async {
+        // Block the outgoing buffer signaling channel.
+        // The task that reads the response from the backend will send a null message to this
+        // channel every time it passes some data to the QUIC engine. The send operation will
+        // block until the engine is ready to send more data. This avoids the backpressure
+        // problem.
+        signal_read_outgoing_buffer_tx.send(()).await;
+    });
+
+    let incoming_buffer = Arc::new(Mutex::new(vec![]));
+    let outgoing_buffer = Arc::new(Mutex::new(vec![]));
+
+    {
+        let incoming_buffer = incoming_buffer.clone();
+        task::spawn(async move {
+            loop {
+                let line = {
+                    use async_std::io;
+                    let mut buffer = String::new();
+                    io::stdin().read_line(&mut buffer).await.unwrap();
+                    buffer
+                };
+                let decoded = base64::decode(line).unwrap();
+                *incoming_buffer.lock().await = decoded;
+                signal_incoming_tx.send(()).await;
+            }
+        });
+    }
+
+    if is_client {
+        async_std::task::block_on(async {
+            handle_client(
+                signal_incoming_rx,
+                signal_outgoing_rx,
+                signal_read_outgoing_buffer_rx,
+                incoming_buffer,
+                outgoing_buffer,
+            )
+            .await;
+        });
+    } else {
+        async_std::task::block_on(async {
+            handle_server();
+        });
+    }
+}
+
 async fn handle_client(
     signal_incoming_rx: async_std::sync::Receiver<()>,
     signal_outgoing_rx: async_std::sync::Receiver<()>,
-    signal_read_buffer_rx: async_std::sync::Receiver<()>,
+    signal_read_outgoing_buffer_rx: async_std::sync::Receiver<()>,
+    incoming_buffer: Arc<Mutex<Vec<u8>>>,
+    outgoing_buffer: Arc<Mutex<Vec<u8>>>,
 ) {
     const STREAM_ID: u64 = 4;
 
@@ -62,15 +118,15 @@ async fn handle_client(
     let source_connection_id: [u8; quiche::MAX_CONN_ID_LEN] = [0; quiche::MAX_CONN_ID_LEN];
     let mut connection = quiche::connect(None, &source_connection_id, &mut config).unwrap();
 
-    enum IncomingBufferReadState {
+    enum OutgoingBufferReadState {
         FetchFresh,
         FromIndex(usize),
-        IgnoreIncoming,
+        IgnoreBuffer,
     }
 
-    use IncomingBufferReadState::*;
+    use OutgoingBufferReadState::*;
 
-    let mut incoming_buffer_read_state = FetchFresh;
+    let mut outgoing_buffer_read_state = FetchFresh;
     let mut fresh_buffer_available = false;
 
     loop {
@@ -88,7 +144,7 @@ async fn handle_client(
 
         match winner {
             Incoming => {
-                connection.recv(&mut buffer).ok();
+                connection.recv(&mut incoming_buffer.lock().await).ok();
             }
             Outgoing => {
                 fresh_buffer_available = true;
@@ -103,41 +159,43 @@ async fn handle_client(
         }
 
         if connection.is_established() {
-            match incoming_buffer_read_state {
+            match outgoing_buffer_read_state {
                 FetchFresh => {
                     if fresh_buffer_available {
-                        match connection.stream_send(STREAM_ID, &mut buffer, false) {
+                        let mut locked_buffer = outgoing_buffer.lock().await;
+                        match connection.stream_send(STREAM_ID, &mut locked_buffer[..], false) {
                             Ok(size) => {
-                                if size != buffer.len() {
-                                    incoming_buffer_read_state = FromIndex(size);
+                                if size != locked_buffer.len() {
+                                    outgoing_buffer_read_state = FromIndex(size);
                                 } else {
-                                    incoming_buffer_read_state = FetchFresh;
-                                    signal_read_buffer_rx.recv().await;
+                                    outgoing_buffer_read_state = FetchFresh;
+                                    signal_read_outgoing_buffer_rx.recv().await.ok();
                                 }
                             }
                             Err(_) => {
-                                incoming_buffer_read_state = IgnoreIncoming;
+                                outgoing_buffer_read_state = IgnoreBuffer;
                             }
                         };
                         fresh_buffer_available = false;
                     }
                 }
                 FromIndex(index) => {
-                    match connection.stream_send(STREAM_ID, &mut buffer[index..], false) {
+                    let mut locked_buffer = outgoing_buffer.lock().await;
+                    match connection.stream_send(STREAM_ID, &mut locked_buffer[index..], false) {
                         Ok(size) => {
-                            if size != buffer.len() {
-                                incoming_buffer_read_state = FromIndex(size);
+                            if size != locked_buffer.len() {
+                                outgoing_buffer_read_state = FromIndex(size);
                             } else {
-                                incoming_buffer_read_state = FetchFresh;
-                                signal_read_buffer_rx.recv().await;
+                                outgoing_buffer_read_state = FetchFresh;
+                                signal_read_outgoing_buffer_rx.recv().await.ok();
                             }
                         }
                         Err(_) => {
-                            incoming_buffer_read_state = IgnoreIncoming;
+                            outgoing_buffer_read_state = IgnoreBuffer;
                         }
                     };
                 }
-                IgnoreIncoming => {}
+                IgnoreBuffer => {}
             };
         }
 
@@ -145,9 +203,7 @@ async fn handle_client(
             while let Ok((read, finished)) = connection.stream_recv(stream, &mut buffer) {
                 let stream_buffer = &buffer[..read];
 
-                print!("{}", unsafe {
-                    std::str::from_utf8_unchecked(&stream_buffer)
-                });
+                // Write to STDOUT
 
                 if finished {
                     connection.close(true, 0x00, b"kthxbye").unwrap();
@@ -166,6 +222,8 @@ async fn handle_client(
                     break;
                 }
             };
+
+            // Write to Unix socket
         }
 
         if connection.is_closed() {
@@ -176,24 +234,4 @@ async fn handle_client(
 
 fn handle_server() {
     let mut config = get_config();
-}
-
-fn main() {
-    println!("Hello, world!");
-    let is_client = false;
-
-    let (signal_incoming_tx, signal_incoming_rx) = channel::<()>(1);
-    let (signal_outgoing_tx, signal_outgoing_rx) = channel::<()>(1);
-
-    task::spawn(async move {});
-
-    if is_client {
-        async_std::task::block_on(async {
-            handle_client();
-        });
-    } else {
-        async_std::task::block_on(async {
-            handle_server();
-        });
-    }
 }
