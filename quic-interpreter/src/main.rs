@@ -1,3 +1,5 @@
+use async_std::os::unix::net::UnixStream;
+use async_std::prelude::*;
 use async_std::sync::{channel, Mutex};
 use async_std::task;
 use futures::{future::FutureExt, select};
@@ -54,6 +56,7 @@ async fn race(
 
 fn main() {
     let is_client = false;
+    let path = String::new();
 
     let (signal_incoming_tx, signal_incoming_rx) = channel::<()>(1);
     let (signal_outgoing_tx, signal_outgoing_rx) = channel::<()>(1);
@@ -68,7 +71,7 @@ fn main() {
     });
 
     let incoming_buffer = Arc::new(Mutex::new(vec![]));
-    let outgoing_buffer = Arc::new(Mutex::new(vec![]));
+    let outgoing_buffer = Arc::new(Mutex::new(([0u8; IP_SIZE], 0usize)));
 
     {
         let incoming_buffer = incoming_buffer.clone();
@@ -92,9 +95,11 @@ fn main() {
             handle_client(
                 signal_incoming_rx,
                 signal_outgoing_rx,
+                signal_outgoing_tx,
                 signal_read_outgoing_buffer_rx,
                 incoming_buffer,
                 outgoing_buffer,
+                path,
             )
             .await;
         });
@@ -108,10 +113,35 @@ fn main() {
 async fn handle_client(
     signal_incoming_rx: async_std::sync::Receiver<()>,
     signal_outgoing_rx: async_std::sync::Receiver<()>,
+    signal_outgoing_tx: async_std::sync::Sender<()>,
     signal_read_outgoing_buffer_rx: async_std::sync::Receiver<()>,
     incoming_buffer: Arc<Mutex<Vec<u8>>>,
-    outgoing_buffer: Arc<Mutex<Vec<u8>>>,
+    outgoing_buffer: Arc<Mutex<([u8; IP_SIZE], usize)>>,
+    path: String,
 ) {
+    let socket = UnixStream::connect(path).await.unwrap();
+    let (mut reader, mut writer) = {
+        use futures::AsyncReadExt;
+        socket.split()
+    };
+
+    {
+        let outgoing_buffer = outgoing_buffer.clone();
+        task::spawn(async move {
+            loop {
+                let outgoing_buffer = outgoing_buffer.lock().await;
+                let mut buffer = outgoing_buffer.0;
+
+                // This value will be read by the QUIC engine, however static
+                // analysis isn't good enough to detect this.
+                let mut _length = outgoing_buffer.1;
+                _length = reader.read(&mut buffer[..]).await.unwrap();
+
+                signal_outgoing_tx.send(()).await;
+            }
+        });
+    }
+
     const STREAM_ID: u64 = 4;
 
     let mut config = get_config();
@@ -162,10 +192,12 @@ async fn handle_client(
             match outgoing_buffer_read_state {
                 FetchFresh => {
                     if fresh_buffer_available {
-                        let mut locked_buffer = outgoing_buffer.lock().await;
-                        match connection.stream_send(STREAM_ID, &mut locked_buffer[..], false) {
+                        let outgoing_buffer = outgoing_buffer.lock().await;
+                        let mut buffer = outgoing_buffer.0;
+                        let length = outgoing_buffer.1;
+                        match connection.stream_send(STREAM_ID, &mut buffer[..length], false) {
                             Ok(size) => {
-                                if size != locked_buffer.len() {
+                                if size != length {
                                     outgoing_buffer_read_state = FromIndex(size);
                                 } else {
                                     outgoing_buffer_read_state = FetchFresh;
@@ -180,11 +212,13 @@ async fn handle_client(
                     }
                 }
                 FromIndex(index) => {
-                    let mut locked_buffer = outgoing_buffer.lock().await;
-                    match connection.stream_send(STREAM_ID, &mut locked_buffer[index..], false) {
+                    let outgoing_buffer = outgoing_buffer.lock().await;
+                    let mut buffer = outgoing_buffer.0;
+                    let length = outgoing_buffer.1;
+                    match connection.stream_send(STREAM_ID, &mut buffer[index..length], false) {
                         Ok(size) => {
-                            if size != locked_buffer.len() {
-                                outgoing_buffer_read_state = FromIndex(size);
+                            if size != length {
+                                outgoing_buffer_read_state = FromIndex(index + size);
                             } else {
                                 outgoing_buffer_read_state = FetchFresh;
                                 signal_read_outgoing_buffer_rx.recv().await.ok();
@@ -203,7 +237,7 @@ async fn handle_client(
             while let Ok((read, finished)) = connection.stream_recv(stream, &mut buffer) {
                 let stream_buffer = &buffer[..read];
 
-                // Write to STDOUT
+                writer.write_all(stream_buffer).await.unwrap();
 
                 if finished {
                     connection.close(true, 0x00, b"kthxbye").unwrap();
@@ -223,7 +257,7 @@ async fn handle_client(
                 }
             };
 
-            // Write to Unix socket
+            println!("{}\n", base64::encode(&out[..write]));
         }
 
         if connection.is_closed() {
