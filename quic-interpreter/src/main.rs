@@ -11,7 +11,7 @@ const IP_SIZE: usize = 65535;
 fn get_config() -> quiche::Config {
     let mut config = quiche::Config::new(quiche::PROTOCOL_VERSION).unwrap();
     config
-        .set_application_protos(b"\x05hq-23\x08http/0.9")
+        .set_application_protos(b"\x05hq-23\x08contrasleuth-mvp-quic-tunnel")
         .unwrap();
     config.set_max_idle_timeout(5000);
     config.set_max_udp_payload_size(MAX_DATAGRAM_SIZE as u64);
