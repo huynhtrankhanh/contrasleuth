@@ -233,15 +233,13 @@ async fn handle_client(
             };
         }
 
-        for stream in connection.readable() {
-            while let Ok((read, finished)) = connection.stream_recv(stream, &mut buffer) {
-                let stream_buffer = &buffer[..read];
+        while let Ok((read, finished)) = connection.stream_recv(STREAM_ID, &mut buffer) {
+            let stream_buffer = &buffer[..read];
 
-                writer.write_all(stream_buffer).await.unwrap();
+            writer.write_all(stream_buffer).await.unwrap();
 
-                if finished {
-                    connection.close(true, 0x00, b"kthxbye").unwrap();
-                }
+            if finished {
+                connection.close(true, 0x00, b"kthxbye").unwrap();
             }
         }
 
@@ -268,4 +266,10 @@ async fn handle_client(
 
 fn handle_server() {
     let mut config = get_config();
+    config
+        .load_cert_chain_from_pem_file("self-signed-key-from-quiche/cert.crt")
+        .unwrap();
+    config
+        .load_priv_key_from_pem_file("self-signed-key-from-quiche/cert.key")
+        .unwrap();
 }
