@@ -145,7 +145,8 @@ async fn handle_client(
     const STREAM_ID: u64 = 4;
 
     let mut config = get_config();
-    let source_connection_id: [u8; quiche::MAX_CONN_ID_LEN] = [0; quiche::MAX_CONN_ID_LEN];
+    use rand::Rng;
+    let source_connection_id = rand::thread_rng().gen::<[u8; quiche::MAX_CONN_ID_LEN]>();
     let mut connection = quiche::connect(None, &source_connection_id, &mut config).unwrap();
 
     enum OutgoingBufferReadState {
@@ -166,9 +167,6 @@ async fn handle_client(
             connection.timeout(),
         )
         .await;
-
-        let mut buffer = [0; IP_SIZE];
-        let mut out = [0; IP_SIZE];
 
         use Winner::*;
 
@@ -233,18 +231,23 @@ async fn handle_client(
             };
         }
 
-        while let Ok((read, finished)) = connection.stream_recv(STREAM_ID, &mut buffer) {
-            let stream_buffer = &buffer[..read];
+        {
+            let mut buffer = [0; IP_SIZE];
+            while let Ok((read, finished)) = connection.stream_recv(STREAM_ID, &mut buffer) {
+                let stream_buffer = &buffer[..read];
 
-            writer.write_all(stream_buffer).await.unwrap();
+                writer.write_all(stream_buffer).await.unwrap();
 
-            if finished {
-                connection.close(true, 0x00, b"kthxbye").unwrap();
+                if finished {
+                    connection.close(true, 0x00, b"kthxbye").unwrap();
+                }
             }
         }
 
         loop {
-            let write = match connection.send(&mut out) {
+            let mut buffer = [0; IP_SIZE];
+
+            let length = match connection.send(&mut buffer) {
                 Ok(it) => it,
                 Err(quiche::Error::Done) => {
                     break;
@@ -255,7 +258,8 @@ async fn handle_client(
                 }
             };
 
-            println!("{}\n", base64::encode(&out[..write]));
+            // Actually broadcast the packet
+            println!("{}\n", base64::encode(&buffer[..length]));
         }
 
         if connection.is_closed() {
@@ -264,7 +268,29 @@ async fn handle_client(
     }
 }
 
-fn handle_server() {
+#[derive(Hash, PartialEq, Eq)]
+struct OpaqueIdentifier(u128);
+
+struct ServerIncomingBuffer {
+    source: OpaqueIdentifier,
+    buffer: Vec<u8>,
+}
+
+struct ServerOutgoingBuffer {
+    destination: OpaqueIdentifier,
+    buffer: [u8; IP_SIZE],
+    length: usize,
+}
+
+async fn handle_server(
+    signal_incoming_rx: async_std::sync::Receiver<()>,
+    signal_outgoing_rx: async_std::sync::Receiver<()>,
+    signal_outgoing_tx: async_std::sync::Sender<()>,
+    signal_read_outgoing_buffer_rx: async_std::sync::Receiver<()>,
+    incoming_buffer: Arc<Mutex<ServerIncomingBuffer>>,
+    outgoing_buffer: Arc<Mutex<ServerOutgoingBuffer>>,
+    path: String,
+) {
     let mut config = get_config();
     config
         .load_cert_chain_from_pem_file("self-signed-key-from-quiche/cert.crt")
@@ -272,4 +298,82 @@ fn handle_server() {
     config
         .load_priv_key_from_pem_file("self-signed-key-from-quiche/cert.key")
         .unwrap();
+
+    use sodiumoxide::crypto::auth;
+    let connection_id_seed = auth::gen_key();
+
+    let generate_connection_id = |destination_connnection_id: &[u8]| {
+        auth::authenticate(destination_connnection_id, &connection_id_seed)
+    };
+
+    struct Client {
+        connection: quiche::Connection,
+    }
+
+    use sodiumoxide::crypto::auth::Tag;
+    use std::collections::HashMap;
+
+    type ClientMap = HashMap<Tag, Client>;
+    let mut clients = ClientMap::new();
+
+    loop {
+        let timeout = clients
+            .values()
+            .filter_map(|client| client.connection.timeout())
+            .min();
+
+        let winner = race(&signal_incoming_rx, &signal_outgoing_rx, timeout).await;
+
+        use Winner::*;
+
+        match winner {
+            Incoming => {
+                let mut incoming_buffer = incoming_buffer.lock().await;
+                let header = match quiche::Header::from_slice(
+                    &mut incoming_buffer.buffer,
+                    quiche::MAX_CONN_ID_LEN,
+                ) {
+                    Ok(it) => it,
+                    Err(_) => {
+                        continue;
+                    }
+                };
+
+                let connection_id = generate_connection_id(&header.dcid);
+                let source_connection_id = &connection_id[..quiche::MAX_CONN_ID_LEN];
+
+                let client = {
+                    if !clients.contains_key(&connection_id) {
+                        let header_type = header.ty;
+                        if header_type != quiche::Type::Initial {
+                            continue;
+                        }
+
+                        if !quiche::version_is_supported(header.version) {
+                            let source_connection_id = &header.scid;
+                            let destination_connnection_id = &header.dcid;
+
+                            let mut buffer = [0; IP_SIZE];
+
+                            let length = quiche::negotiate_version(
+                                source_connection_id,
+                                destination_connnection_id,
+                                &mut buffer,
+                            )
+                            .unwrap();
+
+                            // Actually broadcast the packet
+                            println!("{}\n", base64::encode(&buffer[..length]));
+                        }
+                    }
+                };
+            }
+            Outgoing => {}
+            Timeout => {
+                for client in clients.values_mut() {
+                    client.connection.on_timeout();
+                }
+            }
+        }
+    }
 }

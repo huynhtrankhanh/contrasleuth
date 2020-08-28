@@ -12,3 +12,4 @@ sodiumoxide = "0.2.6"
 async-std = { version = "1.6.2", features = ["unstable"] }
 futures = "0.3.5"
 base64 = "0.12.3"
+rand = "0.7.3"
