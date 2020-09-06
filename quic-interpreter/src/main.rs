@@ -307,7 +307,7 @@ async fn handle_server(
     };
 
     struct Client {
-        connection: quiche::Connection,
+        connection: std::pin::Pin<Box<quiche::Connection>>,
     }
 
     use sodiumoxide::crypto::auth::Tag;
@@ -364,16 +364,52 @@ async fn handle_server(
 
                             // Actually broadcast the packet
                             println!("{}\n", base64::encode(&buffer[..length]));
+
+                            continue;
                         }
+
+                        let connection =
+                            quiche::accept(&source_connection_id, None, &mut config).unwrap();
+
+                        let client = Client { connection };
+                        clients.insert(connection_id.clone(), client);
                     }
+
+                    clients.get_mut(&connection_id).unwrap()
                 };
+
+                client.connection.recv(&mut incoming_buffer.buffer).ok();
             }
-            Outgoing => {}
+            Outgoing => {
+                //
+            }
             Timeout => {
                 for client in clients.values_mut() {
                     client.connection.on_timeout();
                 }
             }
+        };
+
+        for client in clients.values_mut() {
+            loop {
+                let mut buffer = [0u8; IP_SIZE];
+                let length = match client.connection.send(&mut buffer) {
+                    Ok(it) => it,
+                    Err(quiche::Error::Done) => {
+                        break;
+                    }
+                    Err(error) => {
+                        client.connection.close(false, 0x1, b"fail").ok();
+                        break;
+                    }
+                };
+
+                // Actually broadcast the packet
+                println!("{}\n", base64::encode(&buffer[..length]));
+            }
         }
+
+        // Garbage collect closed connections
+        clients.retain(|_, client| !client.connection.is_closed());
     }
 }
