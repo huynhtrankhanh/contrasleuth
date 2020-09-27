@@ -6,7 +6,6 @@ import { Link } from "react-router-dom";
 import { useHistory } from "react-router-dom";
 import { Localized } from "@fluent/react";
 import { Inbox, publishPublicHalfEntry, synthesizeId } from "../store";
-import underDampedSpring from "../underDampedSpring";
 import { observer } from "mobx-react";
 import InboxCard from "../components/InboxCard";
 import CopyInboxId from "../components/CopyInboxId";
@@ -83,33 +82,30 @@ const InboxDetails = observer(
         animate={controls}
       >
         <Localized id="inbox">
-          <Theme.Header layoutTransition={underDampedSpring} />
+          <Theme.Header layout />
         </Localized>
         {flag && (
           <>
-            <Theme.Space layoutTransition={underDampedSpring} />
+            <Theme.Space layout />
             <motion.div
-              layoutTransition={underDampedSpring}
+              layout
               style={{ transform: "scale(0.5)" }}
               animate={{ transform: "scale(1)" }}
             >
               <InboxCard inbox={inbox} displayInboxNotifications={false} />
-              <Theme.Space layoutTransition={underDampedSpring} />
+              <Theme.Space layout />
               <CopyInboxId base32EncodedShortId={base32EncodedShortId} />
-              <Theme.Space layoutTransition={underDampedSpring} />
+              <Theme.Space layout />
               <Link to={"/settings/" + base32EncodedId}>
                 <Localized id="inbox-settings">
-                  <Theme.Button layoutTransition={underDampedSpring} />
+                  <Theme.Button layout />
                 </Localized>
               </Link>
-              <Theme.Space layoutTransition={underDampedSpring} />
+              <Theme.Space layout />
               <Localized id="go-back">
-                <Theme.Button
-                  onClick={() => history.goBack()}
-                  layoutTransition={underDampedSpring}
-                />
+                <Theme.Button onClick={() => history.goBack()} layout />
               </Localized>
-              <Theme.Space layoutTransition={underDampedSpring} />
+              <Theme.Space layout />
               <Theme.ItemWithDetails
                 onClick={() => {
                   const pendingOperations =
@@ -119,7 +115,7 @@ const InboxDetails = observer(
                     publishPublicHalfEntry(inbox, "renew inbox");
                   }
                 }}
-                layoutTransition={underDampedSpring}
+                layout
               >
                 {inbox.setupOperationCount > 0 ? (
                   <>
@@ -173,8 +169,8 @@ const InboxDetails = observer(
               </Theme.ItemWithDetails>
               {inbox.sendOperationCount > 0 && (
                 <>
-                  <Theme.Space layoutTransition={underDampedSpring} />
-                  <Theme.ItemWithDetails layoutTransition={underDampedSpring}>
+                  <Theme.Space layout />
+                  <Theme.ItemWithDetails layout>
                     <Localized
                       id="processing-messages"
                       vars={{ messageCount: inbox.sendOperationCount }}
@@ -184,13 +180,13 @@ const InboxDetails = observer(
                   </Theme.ItemWithDetails>
                 </>
               )}
-              <Theme.Space layoutTransition={underDampedSpring} />
+              <Theme.Space layout />
               <Link to={"/compose/" + base32EncodedId}>
-                <Theme.Button layoutTransition={underDampedSpring}>
+                <Theme.Button layout>
                   <Localized id="compose-message" />
                 </Theme.Button>
               </Link>
-              <Theme.Space layoutTransition={underDampedSpring} />
+              <Theme.Space layout />
               {[...inbox.messages.values()].reduce(
                 (accumulated, current) => accumulated + Number(current.hidden),
                 0
@@ -199,7 +195,7 @@ const InboxDetails = observer(
                   {showHiddenMessages ? (
                     <>
                       <Theme.Button
-                        layoutTransition={underDampedSpring}
+                        layout
                         onClick={() => setShowHiddenMessages(false)}
                       >
                         <Localized id="hide-hidden-messages" />
@@ -209,7 +205,7 @@ const InboxDetails = observer(
                         .filter(({ hidden }) => hidden)
                         .map((message) => (
                           <>
-                            <Theme.Space layoutTransition={underDampedSpring} />
+                            <Theme.Space layout />
                             <Link
                               to={
                                 "/message/" +
@@ -225,7 +221,7 @@ const InboxDetails = observer(
                     </>
                   ) : (
                     <Theme.Button
-                      layoutTransition={underDampedSpring}
+                      layout
                       onClick={() => setShowHiddenMessages(true)}
                     >
                       <Localized id="show-hidden-messages" />
@@ -233,8 +229,8 @@ const InboxDetails = observer(
                   )}
                   {inbox.messages.size > 0 && (
                     <>
-                      <Theme.Space layoutTransition={underDampedSpring} />
-                      <motion.hr layoutTransition={underDampedSpring} />
+                      <Theme.Space layout />
+                      <motion.hr layout />
                     </>
                   )}
                 </>
@@ -244,7 +240,7 @@ const InboxDetails = observer(
                 .filter(({ hidden }) => !hidden)
                 .map((message) => (
                   <React.Fragment key={synthesizeId(message.globalId)}>
-                    <Theme.Space layoutTransition={underDampedSpring} />
+                    <Theme.Space layout />
                     <Link
                       to={
                         "/message/" +

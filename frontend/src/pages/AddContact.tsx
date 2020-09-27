@@ -5,7 +5,6 @@ import Page from "../pages";
 import { useHistory } from "react-router-dom";
 import { Localized } from "@fluent/react";
 import { addContact, contacts, lookupPublicHalf, PublicHalf } from "../store";
-import underDampedSpring from "../underDampedSpring";
 import * as base32 from "hi-base32";
 import calculatePublicHalfId from "../calculatePublicHalfId";
 
@@ -33,12 +32,7 @@ const TextInput = ({
 );
 
 const Submit = ({ children }: { children?: string }) => (
-  <Theme.Button
-    layoutTransition={underDampedSpring}
-    as={motion.input}
-    type="submit"
-    value={children}
-  />
+  <Theme.Button layout as={motion.input} type="submit" value={children} />
 );
 
 const AddContact = ({
@@ -130,12 +124,12 @@ const AddContact = ({
       animate={controls}
     >
       <Localized id="add-contact">
-        <Theme.Header layoutTransition={underDampedSpring} />
+        <Theme.Header layout />
       </Localized>
 
       {validationError === "inbox doesn't exist" ? (
         <>
-          <Theme.Space layoutTransition={underDampedSpring} />
+          <Theme.Space layout />
           <Theme.ItemWithDetails>
             <Localized id="inbox-not-found">
               <div />
@@ -147,7 +141,7 @@ const AddContact = ({
         </>
       ) : validationError === "invalid inbox id" ? (
         <>
-          <Theme.Space layoutTransition={underDampedSpring} />
+          <Theme.Space layout />
           <Theme.ItemWithDetails>
             <Localized id="invalid-inbox-id">
               <div />
@@ -159,7 +153,7 @@ const AddContact = ({
         </>
       ) : validationError === "already added" ? (
         <>
-          <Theme.Space layoutTransition={underDampedSpring} />
+          <Theme.Space layout />
           <Theme.ItemWithDetails>
             <Localized id="already-added-to-contacts">
               <div />
@@ -173,9 +167,9 @@ const AddContact = ({
 
       {flag && (
         <>
-          <Theme.Space layoutTransition={underDampedSpring} />
+          <Theme.Space layout />
           <motion.div
-            layoutTransition={underDampedSpring}
+            layout
             style={{ transform: "scale(0.5)" }}
             animate={{ transform: "scale(1)" }}
           >
@@ -289,7 +283,7 @@ const AddContact = ({
                   controls={inboxIdInputControls}
                 />
               </Localized>
-              <Theme.Space layoutTransition={underDampedSpring} />
+              <Theme.Space layout />
               {showContactNameInput && (
                 <Localized id="contact-name">
                   <TextInput
@@ -300,7 +294,7 @@ const AddContact = ({
                   />
                 </Localized>
               )}
-              <Theme.Space layoutTransition={underDampedSpring} />
+              <Theme.Space layout />
               {showContactNameInput ? (
                 <Localized id="add-contact">
                   <Submit />
@@ -311,10 +305,10 @@ const AddContact = ({
                 </Localized>
               )}
             </form>
-            <Theme.Space layoutTransition={underDampedSpring} />
+            <Theme.Space layout />
             <Localized id="cancel">
               <Theme.Button
-                layoutTransition={underDampedSpring}
+                layout
                 onClick={() => history.goBack()}
               ></Theme.Button>
             </Localized>

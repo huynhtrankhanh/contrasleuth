@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef } from "react";
 import * as Theme from "../theme";
 import { Localized } from "@fluent/react";
 import { motion, useAnimation, AnimationControls } from "framer-motion";
-import underDampedSpring from "../underDampedSpring";
 
 export const Input = ({
   children,
@@ -28,12 +27,7 @@ export const Input = ({
 );
 
 export const Submit = ({ children }: { children?: string }) => (
-  <Theme.Button
-    layoutTransition={underDampedSpring}
-    as={motion.input}
-    type="submit"
-    value={children}
-  />
+  <Theme.Button layout as={motion.input} type="submit" value={children} />
 );
 
 export type ValidationError = {
@@ -80,7 +74,7 @@ export const SingleFieldForm = ({
 
   return (
     <motion.form
-      layoutTransition={underDampedSpring}
+      layout
       onSubmit={(event) => {
         event.preventDefault();
         if (input.trim() === "") {
@@ -104,7 +98,7 @@ export const SingleFieldForm = ({
     >
       {validateResult !== undefined && (
         <>
-          <Theme.ItemWithDetails layoutTransition={underDampedSpring}>
+          <Theme.ItemWithDetails layout>
             <Localized id={validateResult.title}>
               <div />
             </Localized>
@@ -114,16 +108,13 @@ export const SingleFieldForm = ({
           </Theme.ItemWithDetails>
           {validateResult.action !== undefined && (
             <>
-              <Theme.Space layoutTransition={underDampedSpring} />
-              <Theme.Button
-                layoutTransition={underDampedSpring}
-                onClick={validateResult.action.callback}
-              >
+              <Theme.Space layout />
+              <Theme.Button layout onClick={validateResult.action.callback}>
                 <Localized id={validateResult.action.title} />
               </Theme.Button>
             </>
           )}
-          <Theme.Space layoutTransition={underDampedSpring} />
+          <Theme.Space layout />
         </>
       )}
       <Localized id={inputPlaceholder}>
@@ -134,7 +125,7 @@ export const SingleFieldForm = ({
           controls={controls}
         />
       </Localized>
-      <Theme.Space layoutTransition={underDampedSpring} />
+      <Theme.Space layout />
       <Localized id={submitButtonText}>
         <Submit />
       </Localized>

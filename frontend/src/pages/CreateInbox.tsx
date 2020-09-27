@@ -5,7 +5,6 @@ import Page from "../pages";
 import { useHistory } from "react-router-dom";
 import { Localized } from "@fluent/react";
 import { inboxes, addInbox } from "../store";
-import underDampedSpring from "../underDampedSpring";
 
 const InboxNameInput = ({
   children,
@@ -97,13 +96,13 @@ const CreateInbox = ({
       animate={controls}
     >
       <Localized id="create-inbox">
-        <Theme.Header layoutTransition={underDampedSpring} />
+        <Theme.Header layout />
       </Localized>
       {flag && (
         <>
           <Theme.Space />
           <motion.div
-            layoutTransition={underDampedSpring}
+            layout
             style={{ transform: "scale(0.5)" }}
             animate={{ transform: "scale(1)" }}
           >

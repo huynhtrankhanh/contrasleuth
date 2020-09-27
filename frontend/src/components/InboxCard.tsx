@@ -3,7 +3,6 @@ import * as Theme from "../theme";
 import { observer } from "mobx-react";
 import { Inbox } from "../store";
 import { Localized } from "@fluent/react";
-import underDampedSpring from "../underDampedSpring";
 import base32 from "hi-base32";
 import useTimestamp from "../useTimestamp";
 
@@ -41,15 +40,15 @@ const InboxCard = observer(
         {displayInboxNotifications &&
           (newlyCreated ? (
             <Localized id="inbox-not-set-up">
-              <Theme.ItemNotifications layoutTransition={underDampedSpring} />
+              <Theme.ItemNotifications layout />
             </Localized>
           ) : inboxSetupInProgress ? (
             <Localized id="inbox-setup-in-progress">
-              <Theme.ItemNotifications layoutTransition={underDampedSpring} />
+              <Theme.ItemNotifications layout />
             </Localized>
           ) : inboxRenewalInProgress ? (
             <Localized id="inbox-renewal-in-progress">
-              <Theme.ItemNotifications layoutTransition={underDampedSpring} />
+              <Theme.ItemNotifications layout />
             </Localized>
           ) : unread && expired ? (
             <Localized
@@ -60,7 +59,7 @@ const InboxCard = observer(
               }
               vars={{ unreadCount: inbox.unreadCount }}
             >
-              <Theme.ItemNotifications layoutTransition={underDampedSpring} />
+              <Theme.ItemNotifications layout />
             </Localized>
           ) : unread ? (
             <Localized
@@ -71,7 +70,7 @@ const InboxCard = observer(
               }
               vars={{ unreadCount: inbox.unreadCount }}
             >
-              <Theme.ItemNotifications layoutTransition={underDampedSpring} />
+              <Theme.ItemNotifications layout />
             </Localized>
           ) : expired ? (
             <Localized
@@ -81,15 +80,15 @@ const InboxCard = observer(
                   : "inbox-notification-expired"
               }
             >
-              <Theme.ItemNotifications layoutTransition={underDampedSpring} />
+              <Theme.ItemNotifications layout />
             </Localized>
           ) : pendingTasks ? (
             <Localized id="inbox-notification-pending">
-              <Theme.ItemNotifications layoutTransition={underDampedSpring} />
+              <Theme.ItemNotifications layout />
             </Localized>
           ) : null)}
         <Theme.Item
-          layoutTransition={underDampedSpring}
+          layout
           className={displayTopRoundedCorners ? "" : "no-top-rounded-corners"}
         >
           <div style={{ textOverflow: "ellipsis", overflow: "hidden" }}>

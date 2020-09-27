@@ -6,7 +6,6 @@ import { Link } from "react-router-dom";
 import { inboxes, synthesizeId } from "../store";
 import { observer } from "mobx-react";
 import { Localized } from "@fluent/react";
-import underDampedSpring from "../underDampedSpring";
 import InboxCard from "../components/InboxCard";
 import base32 from "hi-base32";
 
@@ -63,30 +62,30 @@ const SelectInbox = observer(
         animate={controls}
       >
         <Localized id="select-inbox">
-          <Theme.Header layoutTransition={underDampedSpring} />
+          <Theme.Header layout />
         </Localized>
         {flag && (
           <>
             <Theme.Space />
             <motion.div
-              layoutTransition={underDampedSpring}
+              layout
               style={{ transform: "scale(0.5)" }}
               animate={{ transform: "scale(1)" }}
             >
               <Link to="/create-inbox">
                 <Localized id="create-inbox">
-                  <Theme.Button layoutTransition={underDampedSpring} />
+                  <Theme.Button layout />
                 </Localized>
               </Link>
-              <Theme.Space layoutTransition={underDampedSpring} />
+              <Theme.Space layout />
               <Link to="/contacts">
                 <Localized id="contacts">
-                  <Theme.Button layoutTransition={underDampedSpring} />
+                  <Theme.Button layout />
                 </Localized>
               </Link>
               {[...inboxes.values()].map((inbox) => (
                 <React.Fragment key={synthesizeId(inbox.globalId)}>
-                  <Theme.Space layoutTransition={underDampedSpring} />
+                  <Theme.Space layout />
                   <Link to={"/inbox/" + base32.encode(inbox.globalId)}>
                     <InboxCard inbox={inbox} displayInboxNotifications />
                   </Link>

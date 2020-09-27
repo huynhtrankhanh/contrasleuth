@@ -4,7 +4,6 @@ import * as Theme from "../theme";
 import Page from "../pages";
 import { useHistory } from "react-router-dom";
 import { Localized } from "@fluent/react";
-import underDampedSpring from "../underDampedSpring";
 import {
   Inbox,
   setAutosavePreference,
@@ -84,32 +83,32 @@ const SetUpInbox = observer(
         animate={controls}
       >
         <Localized id="set-up-inbox">
-          <Theme.Header layoutTransition={underDampedSpring} />
+          <Theme.Header layout />
         </Localized>
         {flag && (
           <>
             <Theme.Space />
             <motion.div
-              layoutTransition={underDampedSpring}
+              layout
               style={{ transform: "scale(0.5)" }}
               animate={{ transform: "scale(1)" }}
             >
               <InboxCard inbox={inbox} displayInboxNotifications={false} />
-              <Theme.Space layoutTransition={underDampedSpring} />
+              <Theme.Space layout />
               <Localized id="go-back">
                 <Theme.Button onClick={() => history.goBack()} />
               </Localized>
-              <Theme.Space layoutTransition={underDampedSpring} />
+              <Theme.Space layout />
               <Localized id="expires-after-7-days">
-                <Theme.Text layoutTransition={underDampedSpring} />
+                <Theme.Text layout />
               </Localized>
-              <Theme.Space layoutTransition={underDampedSpring} />
+              <Theme.Space layout />
               <Localized id="message-retention">
-                <Theme.Text layoutTransition={underDampedSpring} />
+                <Theme.Text layout />
               </Localized>
-              <Theme.Space layoutTransition={underDampedSpring} />
+              <Theme.Space layout />
               <Theme.ItemWithDetails
-                layoutTransition={underDampedSpring}
+                layout
                 onClick={() =>
                   setAutosavePreference(
                     inbox,

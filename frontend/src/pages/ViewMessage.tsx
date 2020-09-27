@@ -19,7 +19,6 @@ import {
   unsaveMessage,
   addContact,
 } from "../store";
-import underDampedSpring from "../underDampedSpring";
 import { observer } from "mobx-react";
 import InboxCard from "../components/InboxCard";
 import MultivariantSection, {
@@ -60,10 +59,7 @@ const DisplayImageFromAttachment = ({
 
   if (url === undefined) return null;
   return (
-    <motion.div
-      style={{ display: "flex", justifyContent: "center" }}
-      layoutTransition={underDampedSpring}
-    >
+    <motion.div style={{ display: "flex", justifyContent: "center" }} layout>
       <motion.img
         style={{ maxWidth: "100vw" }}
         src={url}
@@ -154,10 +150,10 @@ const ViewMessage = observer(
           className="compose-and-view-message"
         >
           <Localized id="message-not-found">
-            <Theme.Header layoutTransition={underDampedSpring} />
+            <Theme.Header layout />
           </Localized>
-          <Theme.Space layoutTransition={underDampedSpring} />
-          <Theme.Text layoutTransition={underDampedSpring}>
+          <Theme.Space layout />
+          <Theme.Text layout>
             <Localized id="message-not-found-explanation" />
           </Theme.Text>
         </Theme.NeatBackground>
@@ -184,12 +180,12 @@ const ViewMessage = observer(
         className="compose-and-view-message"
       >
         <Localized id="view-message">
-          <Theme.Header layoutTransition={underDampedSpring} />
+          <Theme.Header layout />
         </Localized>
         {flag && (
           <>
             <motion.div
-              layoutTransition={underDampedSpring}
+              layout
               style={{ transform: "scale(0.5)" }}
               animate={{ transform: "scale(1)" }}
             >
@@ -215,8 +211,8 @@ const ViewMessage = observer(
 
                     return (
                       <>
-                        <Theme.Space layoutTransition={underDampedSpring} />
-                        <Theme.Item layoutTransition={underDampedSpring}>
+                        <Theme.Space layout />
+                        <Theme.Item layout>
                           <div>
                             <Theme.Deemphasize>
                               <Localized id={role} />
@@ -242,9 +238,9 @@ const ViewMessage = observer(
                             />
                           </div>
                         </Theme.Item>
-                        <Theme.Space layoutTransition={underDampedSpring} />
+                        <Theme.Space layout />
                         <Theme.Button
-                          layoutTransition={underDampedSpring}
+                          layout
                           onClick={() =>
                             role === "recipient"
                               ? setVariant("recipients")
@@ -253,16 +249,16 @@ const ViewMessage = observer(
                         >
                           <Localized id="go-back" />
                         </Theme.Button>
-                        <Theme.Space layoutTransition={underDampedSpring} />
+                        <Theme.Space layout />
                         <CopyInboxId
                           alternateColorScheme
                           base32EncodedShortId={base32.encode(id.slice(0, 10))}
                         />
                         {contacts.has(syntheticId) || (
                           <>
-                            <Theme.Space layoutTransition={underDampedSpring} />
+                            <Theme.Space layout />
                             <Theme.Button
-                              layoutTransition={underDampedSpring}
+                              layout
                               onClick={() =>
                                 role === "recipient"
                                   ? setVariant("add contact (recipient)")
@@ -286,9 +282,9 @@ const ViewMessage = observer(
                     }
                     return (
                       <>
-                        <Theme.Space layoutTransition={underDampedSpring} />
+                        <Theme.Space layout />
                         <Theme.Button
-                          layoutTransition={underDampedSpring}
+                          layout
                           onClick={() =>
                             role === "recipient"
                               ? setVariant("recipient")
@@ -297,7 +293,7 @@ const ViewMessage = observer(
                         >
                           <Localized id="go-back" />
                         </Theme.Button>
-                        <Theme.Space layoutTransition={underDampedSpring} />
+                        <Theme.Space layout />
                         <SingleFieldForm
                           validate={(name) => {
                             addContact(
@@ -316,7 +312,7 @@ const ViewMessage = observer(
                           submitButtonText="add-contact"
                           inputPlaceholder="contact-name"
                         />
-                        <Theme.Space layoutTransition={underDampedSpring} />
+                        <Theme.Space layout />
                       </>
                     );
                   };
@@ -326,7 +322,7 @@ const ViewMessage = observer(
                       key: "root",
                       render: (setVariant) => (
                         <>
-                          <Theme.Space layoutTransition={underDampedSpring} />
+                          <Theme.Space layout />
                           <motion.div
                             style={{
                               display: "flex",
@@ -338,18 +334,16 @@ const ViewMessage = observer(
                               inbox={inbox}
                               displayInboxNotifications={false}
                             />
-                            <Theme.Space layoutTransition={underDampedSpring} />
+                            <Theme.Space layout />
                             <Theme.Button onClick={() => history.goBack()}>
                               <Localized id="go-back" />
                             </Theme.Button>
                             {message.content.trim() !== "" && (
                               <>
-                                <Theme.Space
-                                  layoutTransition={underDampedSpring}
-                                />
+                                <Theme.Space layout />
                                 <Theme.Text
                                   style={{ whiteSpace: "pre-wrap" }}
-                                  layoutTransition={underDampedSpring}
+                                  layout
                                 >
                                   {message.content}
                                 </Theme.Text>
@@ -358,9 +352,7 @@ const ViewMessage = observer(
                           </motion.div>
                           {message.attachments.length > 0 && (
                             <>
-                              <Theme.Space
-                                layoutTransition={underDampedSpring}
-                              />
+                              <Theme.Space layout />
                               <DisplayImageFromAttachment
                                 attachment={message.attachments[0]}
                               />
@@ -373,13 +365,13 @@ const ViewMessage = observer(
                               alignItems: "center",
                             }}
                           >
-                            <Theme.Space layoutTransition={underDampedSpring} />
+                            <Theme.Space layout />
                             <Theme.Item
                               onClick={() => {
                                 setSelectedPublicHalf(message.sender);
                                 setVariant("sender");
                               }}
-                              layoutTransition={underDampedSpring}
+                              layout
                             >
                               <div>
                                 <Theme.Deemphasize>
@@ -420,9 +412,7 @@ const ViewMessage = observer(
                             {message.inReplyTo !== undefined &&
                               repliedTo === undefined && (
                                 <>
-                                  <Theme.Space
-                                    layoutTransition={underDampedSpring}
-                                  />
+                                  <Theme.Space layout />
                                   <Theme.ItemWithDetails>
                                     <div>
                                       <Localized id="parent-message-not-available" />
@@ -435,9 +425,7 @@ const ViewMessage = observer(
                               )}
                             {repliedTo !== undefined && (
                               <>
-                                <Theme.Space
-                                  layoutTransition={underDampedSpring}
-                                />
+                                <Theme.Space layout />
                                 <Link to={generateLink(repliedTo)}>
                                   <MessagePreview
                                     message={repliedTo}
@@ -447,9 +435,9 @@ const ViewMessage = observer(
                                 </Link>
                               </>
                             )}
-                            <Theme.Space layoutTransition={underDampedSpring} />
+                            <Theme.Space layout />
                             <Theme.Button
-                              layoutTransition={underDampedSpring}
+                              layout
                               onClick={() => setVariant("recipients")}
                             >
                               <Localized id="view-recipients" />
@@ -460,21 +448,19 @@ const ViewMessage = observer(
                               ) || new Set()
                             ).size > 0 && (
                               <>
-                                <Theme.Space
-                                  layoutTransition={underDampedSpring}
-                                />
+                                <Theme.Space layout />
                                 <Theme.Button
-                                  layoutTransition={underDampedSpring}
+                                  layout
                                   onClick={() => setVariant("replies")}
                                 >
                                   <Localized id="view-replies" />
                                 </Theme.Button>
                               </>
                             )}
-                            <Theme.Space layoutTransition={underDampedSpring} />
+                            <Theme.Space layout />
                             {message.hidden ? (
                               <Theme.ItemWithDetails
-                                layoutTransition={underDampedSpring}
+                                layout
                                 onClick={() =>
                                   unhideMessage(inbox, message.globalId)
                                 }
@@ -515,7 +501,7 @@ const ViewMessage = observer(
                               </Theme.ItemWithDetails>
                             ) : message.messageType === "saved" ? (
                               <Theme.ItemWithDetails
-                                layoutTransition={underDampedSpring}
+                                layout
                                 onClick={() => setVariant("unsave or hide")}
                               >
                                 <div>
@@ -527,7 +513,7 @@ const ViewMessage = observer(
                               </Theme.ItemWithDetails>
                             ) : (
                               <Theme.ItemWithDetails
-                                layoutTransition={underDampedSpring}
+                                layout
                                 onClick={() => setVariant("save or hide")}
                               >
                                 <div>
@@ -565,15 +551,13 @@ const ViewMessage = observer(
                                 </div>
                               </Theme.ItemWithDetails>
                             )}
-                            <Theme.Space layoutTransition={underDampedSpring} />
+                            <Theme.Space layout />
                             <Link
                               to={
                                 "/compose/" + base32EncodedId + "/" + messageId
                               }
                             >
-                              <Theme.Button
-                                layoutTransition={underDampedSpring}
-                              >
+                              <Theme.Button layout>
                                 <Localized id="reply" />
                               </Theme.Button>
                             </Link>
@@ -585,9 +569,9 @@ const ViewMessage = observer(
                       key: "unsave or hide",
                       render: (setVariant) => (
                         <>
-                          <Theme.Space layoutTransition={underDampedSpring} />
+                          <Theme.Space layout />
                           <Theme.ItemWithDetails
-                            layoutTransition={underDampedSpring}
+                            layout
                             onClick={() => {
                               setVariant("root");
                               unsaveMessage(inbox, message.globalId);
@@ -624,9 +608,9 @@ const ViewMessage = observer(
                               )}
                             </div>
                           </Theme.ItemWithDetails>
-                          <Theme.Space layoutTransition={underDampedSpring} />
+                          <Theme.Space layout />
                           <Theme.ItemWithDetails
-                            layoutTransition={underDampedSpring}
+                            layout
                             onClick={() => {
                               setVariant("root");
                               hideMessage(inbox, message.globalId);
@@ -663,9 +647,9 @@ const ViewMessage = observer(
                               )}
                             </div>
                           </Theme.ItemWithDetails>
-                          <Theme.Space layoutTransition={underDampedSpring} />
+                          <Theme.Space layout />
                           <Theme.Button
-                            layoutTransition={underDampedSpring}
+                            layout
                             onClick={() => setVariant("root")}
                           >
                             <Localized id="go-back" />
@@ -677,9 +661,9 @@ const ViewMessage = observer(
                       key: "save or hide",
                       render: (setVariant) => (
                         <>
-                          <Theme.Space layoutTransition={underDampedSpring} />
+                          <Theme.Space layout />
                           <Theme.Button
-                            layoutTransition={underDampedSpring}
+                            layout
                             onClick={() => {
                               setVariant("root");
                               saveMessage(inbox, message.globalId);
@@ -687,9 +671,9 @@ const ViewMessage = observer(
                           >
                             <Localized id="save-message" />
                           </Theme.Button>
-                          <Theme.Space layoutTransition={underDampedSpring} />
+                          <Theme.Space layout />
                           <Theme.Button
-                            layoutTransition={underDampedSpring}
+                            layout
                             onClick={() => {
                               setVariant("root");
                               hideMessage(inbox, message.globalId);
@@ -697,9 +681,9 @@ const ViewMessage = observer(
                           >
                             <Localized id="hide-message" />
                           </Theme.Button>
-                          <Theme.Space layoutTransition={underDampedSpring} />
+                          <Theme.Space layout />
                           <Theme.Button
-                            layoutTransition={underDampedSpring}
+                            layout
                             onClick={() => setVariant("root")}
                           >
                             <Localized id="go-back" />
@@ -711,7 +695,7 @@ const ViewMessage = observer(
                       key: "recipients",
                       render: (setVariant) => (
                         <>
-                          <Theme.Space layoutTransition={underDampedSpring} />
+                          <Theme.Space layout />
                           <Theme.Button onClick={() => setVariant("root")}>
                             <Localized id="go-back" />
                           </Theme.Button>
@@ -730,11 +714,9 @@ const ViewMessage = observer(
                             if (contact === undefined) {
                               return (
                                 <React.Fragment key={syntheticId}>
-                                  <Theme.Space
-                                    layoutTransition={underDampedSpring}
-                                  />
+                                  <Theme.Space layout />
                                   <Theme.Item
-                                    layoutTransition={underDampedSpring}
+                                    layout
                                     onClick={() => {
                                       setSelectedPublicHalf(recipient);
                                       setVariant("recipient");
@@ -756,11 +738,9 @@ const ViewMessage = observer(
 
                             return (
                               <React.Fragment key={syntheticId}>
-                                <Theme.Space
-                                  layoutTransition={underDampedSpring}
-                                />
+                                <Theme.Space layout />
                                 <Theme.Item
-                                  layoutTransition={underDampedSpring}
+                                  layout
                                   onClick={() => {
                                     setSelectedPublicHalf(recipient);
                                     setVariant("recipient");
@@ -784,9 +764,9 @@ const ViewMessage = observer(
                       key: "replies",
                       render: (setVariant) => (
                         <>
-                          <Theme.Space layoutTransition={underDampedSpring} />
+                          <Theme.Space layout />
                           <Theme.Button
-                            layoutTransition={underDampedSpring}
+                            layout
                             onClick={() => setVariant("root")}
                           >
                             <Localized id="go-back" />
@@ -800,9 +780,7 @@ const ViewMessage = observer(
                             if (message === undefined) return null;
                             return (
                               <React.Fragment key={syntheticId}>
-                                <Theme.Space
-                                  layoutTransition={underDampedSpring}
-                                />
+                                <Theme.Space layout />
                                 <Link to={generateLink(message)}>
                                   <MessagePreview
                                     message={message}

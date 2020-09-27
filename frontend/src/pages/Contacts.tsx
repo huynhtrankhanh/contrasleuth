@@ -13,7 +13,6 @@ import {
   lookupPublicHalf,
   setContactPublicHalf,
 } from "../store";
-import underDampedSpring from "../underDampedSpring";
 import base32 from "hi-base32";
 import { observer } from "mobx-react";
 import CopyInboxId from "../components/CopyInboxId";
@@ -100,13 +99,13 @@ const Contacts = observer(
         animate={controls}
       >
         <Localized id="contacts">
-          <Theme.Header layoutTransition={underDampedSpring} />
+          <Theme.Header layout />
         </Localized>
         {flag && (
           <>
-            <Theme.Space layoutTransition={underDampedSpring} />
+            <Theme.Space layout />
             <motion.div
-              layoutTransition={underDampedSpring}
+              layout
               style={{ transform: "scale(0.5)" }}
               animate={{ transform: "scale(1)" }}
             >
@@ -114,7 +113,7 @@ const Contacts = observer(
                 ? (() => {
                     const contents = (
                       <>
-                        <Theme.Sticky layoutTransition={underDampedSpring}>
+                        <Theme.Sticky layout>
                           <Localized id="search-contacts">
                             <Input
                               value={searchQuery}
@@ -122,26 +121,23 @@ const Contacts = observer(
                               controls={inputControls}
                             />
                           </Localized>
-                          <Theme.Space layoutTransition={underDampedSpring} />
+                          <Theme.Space layout />
                           <Link to="/add-contact">
-                            <Theme.Button layoutTransition={underDampedSpring}>
+                            <Theme.Button layout>
                               <Localized id="add-contact" />
                             </Theme.Button>
                           </Link>
-                          <Theme.Space layoutTransition={underDampedSpring} />
-                          <Theme.Button
-                            onClick={() => history.goBack()}
-                            layoutTransition={underDampedSpring}
-                          >
+                          <Theme.Space layout />
+                          <Theme.Button onClick={() => history.goBack()} layout>
                             <Localized id="go-back" />
                           </Theme.Button>
                         </Theme.Sticky>
-                        <Theme.Space layoutTransition={underDampedSpring} />
+                        <Theme.Space layout />
                         {searchQuery === ""
                           ? [...contacts.values()].map((contact) => (
                               <React.Fragment key={contact.ephemeralLocalId}>
                                 <Theme.Item
-                                  layoutTransition={underDampedSpring}
+                                  layout
                                   onClick={() =>
                                     setVariantAndTaint({
                                       contact,
@@ -161,9 +157,7 @@ const Contacts = observer(
                                     <div />
                                   </Localized>
                                 </Theme.Item>
-                                <Theme.Space
-                                  layoutTransition={underDampedSpring}
-                                />
+                                <Theme.Space layout />
                               </React.Fragment>
                             ))
                           : [...contacts.values()]
@@ -185,7 +179,7 @@ const Contacts = observer(
                               .map(({ contact, shortInboxId }) => (
                                 <React.Fragment key={contact.ephemeralLocalId}>
                                   <Theme.Item
-                                    layoutTransition={underDampedSpring}
+                                    layout
                                     onClick={() =>
                                       setVariantAndTaint({
                                         contact,
@@ -204,9 +198,7 @@ const Contacts = observer(
                                       </BoldOccurrences>
                                     </div>
                                   </Theme.Item>
-                                  <Theme.Space
-                                    layoutTransition={underDampedSpring}
-                                  />
+                                  <Theme.Space layout />
                                 </React.Fragment>
                               ))}
                       </>
@@ -233,7 +225,7 @@ const Contacts = observer(
                         animate={{ transform: "scale(1)" }}
                       >
                         <React.Fragment key={variant.contact.ephemeralLocalId}>
-                          <Theme.Item layoutTransition={underDampedSpring}>
+                          <Theme.Item layout>
                             <div>{variant.contact.label}</div>
                             <Localized
                               id="interpolated-inbox-id"
@@ -244,9 +236,9 @@ const Contacts = observer(
                               <div />
                             </Localized>
                           </Theme.Item>
-                          <Theme.Space layoutTransition={underDampedSpring} />
+                          <Theme.Space layout />
                         </React.Fragment>
-                        <Theme.Space layoutTransition={underDampedSpring} />
+                        <Theme.Space layout />
                         <MultivariantSection
                           variants={[
                             {
@@ -254,40 +246,32 @@ const Contacts = observer(
                               render: (setVariant) => (
                                 <>
                                   <Theme.Button
-                                    layoutTransition={underDampedSpring}
+                                    layout
                                     onClick={() => setVariant("rename")}
                                   >
                                     <Localized id="rename" />
                                   </Theme.Button>
-                                  <Theme.Space
-                                    layoutTransition={underDampedSpring}
-                                  />
+                                  <Theme.Space layout />
                                   <CopyInboxId
                                     base32EncodedShortId={base32EncodedShortId}
                                   />
-                                  <Theme.Space
-                                    layoutTransition={underDampedSpring}
-                                  />
+                                  <Theme.Space layout />
                                   <Theme.Button
-                                    layoutTransition={underDampedSpring}
+                                    layout
                                     onClick={() => setVariant("edit inbox id")}
                                   >
                                     <Localized id="edit-inbox-id" />
                                   </Theme.Button>
-                                  <Theme.Space
-                                    layoutTransition={underDampedSpring}
-                                  />
+                                  <Theme.Space layout />
                                   <Theme.Button
-                                    layoutTransition={underDampedSpring}
+                                    layout
                                     onClick={() => setVariant("delete")}
                                   >
                                     <Localized id="delete" />
                                   </Theme.Button>
-                                  <Theme.Space
-                                    layoutTransition={underDampedSpring}
-                                  />
+                                  <Theme.Space layout />
                                   <Theme.Button
-                                    layoutTransition={underDampedSpring}
+                                    layout
                                     onClick={() =>
                                       setVariantAndTaint({ type: "root" })
                                     }
@@ -315,11 +299,9 @@ const Contacts = observer(
                                     submitButtonText="rename"
                                     inputPlaceholder="contact-name"
                                   />
-                                  <Theme.Space
-                                    layoutTransition={underDampedSpring}
-                                  />
+                                  <Theme.Space layout />
                                   <Theme.Button
-                                    layoutTransition={underDampedSpring}
+                                    layout
                                     onClick={() => setVariant("actions")}
                                   >
                                     <Localized id="go-back" />
@@ -446,11 +428,9 @@ const Contacts = observer(
                                       submitButtonText="edit-inbox-id"
                                       inputPlaceholder="inbox-id"
                                     />
-                                    <Theme.Space
-                                      layoutTransition={underDampedSpring}
-                                    />
+                                    <Theme.Space layout />
                                     <Theme.Button
-                                      layoutTransition={underDampedSpring}
+                                      layout
                                       onClick={() => setVariant("actions")}
                                     >
                                       <Localized id="go-back" />
@@ -466,9 +446,7 @@ const Contacts = observer(
                                   <Theme.Text>
                                     <Localized id="contact-delete-confirm" />
                                   </Theme.Text>
-                                  <Theme.Space
-                                    layoutTransition={underDampedSpring}
-                                  />
+                                  <Theme.Space layout />
                                   <Theme.Button
                                     onClick={() => {
                                       const currentContact = variant.contact;
@@ -478,11 +456,9 @@ const Contacts = observer(
                                   >
                                     <Localized id="delete" />
                                   </Theme.Button>
-                                  <Theme.Space
-                                    layoutTransition={underDampedSpring}
-                                  />
+                                  <Theme.Space layout />
                                   <Theme.Button
-                                    layoutTransition={underDampedSpring}
+                                    layout
                                     onClick={() => setVariant("actions")}
                                   >
                                     <Localized id="go-back" />
