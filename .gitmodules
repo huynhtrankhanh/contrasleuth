@@ -1,0 +1,3 @@
+[submodule "quinn"]
+	path = quinn
+	url = https://github.com/huynhtrankhanh/quinn
