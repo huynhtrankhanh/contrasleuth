@@ -5,41 +5,71 @@ import { spawn } from "child_process";
 
 enum SubmitResult {
   Success,
-  Cancelled
+  Cancelled,
 }
 
 const atob = (s: string) => Buffer.from(s, "base64").toString("utf-8");
 const btoa = (s: string) => Buffer.from(s, "utf-8").toString("base64");
 
 test.before(
-  t =>
+  (t) =>
     new Promise((resolve, reject) => {
       t.timeout(3600000);
-      const buildProcess = spawn("cd ../backend && cargo build", {
-        shell: true
+
+      const backendPromise = new Promise((resolve, reject) => {
+        const buildProcess = spawn("cd ../backend && cargo build", {
+          shell: true,
+        });
+        buildProcess.stdout.on("data", (data) => process.stdout.write(data));
+        buildProcess.stderr.on("data", (data) => process.stderr.write(data));
+        buildProcess.on("close", (code, signal) => {
+          if (code === 0) {
+            t.log("build was successful");
+            resolve();
+          } else {
+            t.log(
+              "build process terminated with exit code",
+              code,
+              "and signal",
+              signal
+            );
+            reject();
+          }
+        });
       });
-      buildProcess.stdout.on("data", data => process.stdout.write(data));
-      buildProcess.stderr.on("data", data => process.stderr.write(data));
-      buildProcess.on("close", (code, signal) => {
-        if (code === 0) {
-          t.log("build was successful");
-          resolve();
-        } else {
-          t.log(
-            "build process terminated with exit code",
-            code,
-            "and signal",
-            signal
-          );
-          reject();
-        }
+
+      const quicInterpreterPromise = new Promise((resolve, reject) => {
+        const buildProcess = spawn("cd ../quinn/quinn && cargo build", {
+          shell: true,
+        });
+        buildProcess.stdout.on("data", (data) => process.stdout.write(data));
+        buildProcess.stderr.on("data", (data) => process.stderr.write(data));
+        buildProcess.on("close", (code, signal) => {
+          if (code === 0) {
+            t.log("build was successful");
+            resolve();
+          } else {
+            t.log(
+              "build process terminated with exit code",
+              code,
+              "and signal",
+              signal
+            );
+            reject();
+          }
+        });
       });
+
+      return Promise.all([backendPromise, quicInterpreterPromise]).then(
+        () => resolve(),
+        reject
+      );
     })
 );
 
 const getPromisePair = <T>(): [Promise<T>, (v: T) => void] => {
   let resolve;
-  const promise = new Promise<T>(_resolve => {
+  const promise = new Promise<T>((_resolve) => {
     resolve = _resolve;
   });
   return [promise, resolve as (v: T) => void];
@@ -50,14 +80,15 @@ const prepare = (() => {
   const serverListenAddress = Symbol("server listen address");
   return (
     onInventory: (i: number[][]) => void,
-    onSTDOUT: (x: string) => void
+    onSTDOUT: (x: string) => void,
+    unixSocket?: string
   ) => {
     const randomDBName = uuid();
-    const {
-      stdin,
-      stdout
-    } = spawn(
-      `../backend/target/debug/contrasleuth --database /tmp/${randomDBName}.sqlite --address 127.0.0.1:0 --reverse-address 127.0.0.1:0 --dump-inventory`,
+
+    const { stdin, stdout } = spawn(
+      unixSocket
+        ? `../backend/target/debug/contrasleuth --database /tmp/${randomDBName}.sqlite --unix-socket /tmp/${unixSocket}.server --reverse-unix-socket /tmp/${unixSocket}.client --dump-inventory`
+        : `../backend/target/debug/contrasleuth --database /tmp/${randomDBName}.sqlite --address 127.0.0.1:0 --reverse-address 127.0.0.1:0 --dump-inventory`,
       { shell: true }
     );
 
@@ -178,20 +209,20 @@ const prepare = (() => {
     stdin.setDefaultEncoding("utf8");
     stdout.setEncoding("utf8");
 
-    stdout.pipe(split2()).on("data", x => {
+    stdout.pipe(split2()).on("data", (x) => {
       onSTDOUT(x as string);
     });
 
     const [
       serverListenAddressPromise,
-      resolveServerListenAddress
+      resolveServerListenAddress,
     ] = getPromisePair<string>();
     const [
       clientListenAddressPromise,
-      resolveClientListenAddress
+      resolveClientListenAddress,
     ] = getPromisePair<string>();
 
-    stdout.pipe(split2()).on("data", _line => {
+    stdout.pipe(split2()).on("data", (_line) => {
       const line = _line as string;
       const regex = /^.*\[IPC\]\s/;
       if (!regex.test(line)) return;
@@ -296,8 +327,8 @@ const prepare = (() => {
               payload,
               expiration_time: expirationTime,
               operation_id: id,
-              associated_frontend_data: ""
-            }
+              associated_frontend_data: "",
+            },
           })
         );
         awaitingResponseMap.set(id, (response): void => {
@@ -312,8 +343,8 @@ const prepare = (() => {
           stdin.write(
             serialize({
               CancelSubmitOperation: {
-                to_be_cancelled: id
-              }
+                to_be_cancelled: id,
+              },
             })
           );
         };
@@ -333,21 +364,21 @@ const prepare = (() => {
       connect: (peer: Methods, onFailure: () => void) => {
         Promise.all([
           peer[serverListenAddress] as Promise<string>,
-          peer[clientListenAddress] as Promise<string>
+          peer[clientListenAddress] as Promise<string>,
         ]).then(([address, reverseAddress]) => {
           const id1 = uuid();
           const id2 = uuid();
           stdin.write(
             serialize({
-              EstablishConnection: { address, operation_id: id1 }
+              EstablishConnection: { address, operation_id: id1 },
             })
           );
           stdin.write(
             serialize({
               EstablishReverseConnection: {
                 address: reverseAddress,
-                operation_id: id2
-              }
+                operation_id: id2,
+              },
             })
           );
           let reportedFailure = false;
@@ -360,50 +391,52 @@ const prepare = (() => {
           awaitingResponseMap.set(id1, onResponse);
           awaitingResponseMap.set(id2, onResponse);
         });
-      }
+      },
     };
 
     return methods;
   };
 })();
 
-test("cancel submission", t => {
+test("cancel submission", (t) => {
   t.timeout(120000);
 
   const peer = prepare(
-    _ => void 8,
-    message => t.log(message.trim())
+    (_) => void 8,
+    (message) => t.log(message.trim())
   );
-  return new Promise(resolve => {
-    peer.submit([1], 9999999999, result => {
+  return new Promise((resolve) => {
+    const cancel = peer.submit([1], 9999999999, (result) => {
       t.assert(result === SubmitResult.Cancelled);
       resolve();
-    })();
+    });
+
+    setTimeout(cancel, 100);
   });
 });
 
-test("initial reconcile round", t => {
+test("initial reconcile round", (t) => {
   t.timeout(120000);
 
   const [peer1Consistent, resolvePeer1Consistent] = getPromisePair<void>();
   const [peer2Consistent, resolvePeer2Consistent] = getPromisePair<void>();
 
   const peer1 = prepare(
-    items => {
+    (items) => {
       if (items.length === 2) {
         Promise.all([
-          new Promise<number[]>(resolve => {
-            peer1.query(items[0], result => {
+          new Promise<number[]>((resolve) => {
+            peer1.query(items[0], (result) => {
               if (result === null) t.fail();
               resolve(result.payload);
             });
           }),
-          new Promise<number[]>(resolve => {
-            peer1.query(items[1], result => {
+          new Promise<number[]>((resolve) => {
+            peer1.query(items[1], (result) => {
               if (result === null) t.fail();
               resolve(result.payload);
             });
-          })
+          }),
         ]).then(([[u], [v]]) => {
           if ((u === 1 && v === 2) || (u === 2 && v === 1)) {
             resolvePeer1Consistent();
@@ -411,27 +444,27 @@ test("initial reconcile round", t => {
         });
       }
     },
-    message => {
+    (message) => {
       t.log("Peer 1: " + message.trim());
     }
   );
 
   const peer2 = prepare(
-    items => {
+    (items) => {
       if (items.length === 2) {
         Promise.all([
-          new Promise<number[]>(resolve => {
-            peer2.query(items[0], result => {
+          new Promise<number[]>((resolve) => {
+            peer2.query(items[0], (result) => {
               if (result === null) t.fail();
               resolve(result.payload);
             });
           }),
-          new Promise<number[]>(resolve => {
-            peer2.query(items[1], result => {
+          new Promise<number[]>((resolve) => {
+            peer2.query(items[1], (result) => {
               if (result === null) t.fail();
               resolve(result.payload);
             });
-          })
+          }),
         ]).then(([[u], [v]]) => {
           if ((u === 1 && v === 2) || (u === 2 && v === 1)) {
             resolvePeer2Consistent();
@@ -439,7 +472,7 @@ test("initial reconcile round", t => {
         });
       }
     },
-    message => {
+    (message) => {
       t.log("Peer 2: " + message.trim());
     }
   );
@@ -447,13 +480,13 @@ test("initial reconcile round", t => {
   const nearFuture = Math.trunc(Date.now() / 1000 + 3600);
 
   Promise.all([
-    new Promise(resolve => {
+    new Promise((resolve) => {
       peer1.submit([1], nearFuture, resolve);
     }),
-    new Promise(resolve => {
+    new Promise((resolve) => {
       peer2.submit([2], nearFuture, resolve);
-    })
-  ]).then(_ => {
+    }),
+  ]).then((_) => {
     peer1.connect(peer2, () => {
       t.fail();
     });
@@ -462,28 +495,28 @@ test("initial reconcile round", t => {
   return Promise.all([peer1Consistent, peer2Consistent]).then(() => t.pass());
 });
 
-test("reconcile on inventory change", t => {
+test("reconcile on inventory change", (t) => {
   t.timeout(120000);
 
   const [peer1Consistent, resolvePeer1Consistent] = getPromisePair<void>();
   const [peer2Consistent, resolvePeer2Consistent] = getPromisePair<void>();
 
   const peer1 = prepare(
-    items => {
+    (items) => {
       if (items.length === 2) {
         Promise.all([
-          new Promise<number[]>(resolve => {
-            peer1.query(items[0], result => {
+          new Promise<number[]>((resolve) => {
+            peer1.query(items[0], (result) => {
               if (result === null) t.fail();
               resolve(result.payload);
             });
           }),
-          new Promise<number[]>(resolve => {
-            peer1.query(items[1], result => {
+          new Promise<number[]>((resolve) => {
+            peer1.query(items[1], (result) => {
               if (result === null) t.fail();
               resolve(result.payload);
             });
-          })
+          }),
         ]).then(([[u], [v]]) => {
           if ((u === 1 && v === 2) || (u === 2 && v === 1)) {
             resolvePeer1Consistent();
@@ -491,27 +524,27 @@ test("reconcile on inventory change", t => {
         });
       }
     },
-    message => {
+    (message) => {
       t.log("Peer 1: " + message.trim());
     }
   );
 
   const peer2 = prepare(
-    items => {
+    (items) => {
       if (items.length === 2) {
         Promise.all([
-          new Promise<number[]>(resolve => {
-            peer2.query(items[0], result => {
+          new Promise<number[]>((resolve) => {
+            peer2.query(items[0], (result) => {
               if (result === null) t.fail();
               resolve(result.payload);
             });
           }),
-          new Promise<number[]>(resolve => {
-            peer2.query(items[1], result => {
+          new Promise<number[]>((resolve) => {
+            peer2.query(items[1], (result) => {
               if (result === null) t.fail();
               resolve(result.payload);
             });
-          })
+          }),
         ]).then(([[u], [v]]) => {
           if ((u === 1 && v === 2) || (u === 2 && v === 1)) {
             resolvePeer2Consistent();
@@ -519,7 +552,7 @@ test("reconcile on inventory change", t => {
         });
       }
     },
-    message => {
+    (message) => {
       t.log("Peer 2: " + message.trim());
     }
   );
@@ -528,8 +561,102 @@ test("reconcile on inventory change", t => {
 
   peer1.connect(peer2, () => t.fail());
   setTimeout(() => {
-    peer1.submit([1], nearFuture, _ => void 8);
-    peer2.submit([2], nearFuture, _ => void 8);
+    peer1.submit([1], nearFuture, (_) => void 8);
+    peer2.submit([2], nearFuture, (_) => void 8);
+  }, 100);
+
+  return Promise.all([peer1Consistent, peer2Consistent]).then(() => t.pass());
+});
+
+test("QUIC interpreter: reconcile on inventory change", (t) => {
+  t.timeout(120000);
+
+  const randomSocketName1 = uuid();
+  const randomSocketName2 = uuid();
+
+  const [peer1Consistent, resolvePeer1Consistent] = getPromisePair<void>();
+  const [peer2Consistent, resolvePeer2Consistent] = getPromisePair<void>();
+
+  const peer1 = prepare(
+    (items) => {
+      if (items.length === 2) {
+        Promise.all([
+          new Promise<number[]>((resolve) => {
+            peer1.query(items[0], (result) => {
+              if (result === null) t.fail();
+              resolve(result.payload);
+            });
+          }),
+          new Promise<number[]>((resolve) => {
+            peer1.query(items[1], (result) => {
+              if (result === null) t.fail();
+              resolve(result.payload);
+            });
+          }),
+        ]).then(([[u], [v]]) => {
+          if ((u === 1 && v === 2) || (u === 2 && v === 1)) {
+            resolvePeer1Consistent();
+          }
+        });
+      }
+    },
+    (message) => {
+      t.log("Peer 1: " + message.trim());
+    },
+    randomSocketName1
+  );
+
+  const peer2 = prepare(
+    (items) => {
+      if (items.length === 2) {
+        Promise.all([
+          new Promise<number[]>((resolve) => {
+            peer2.query(items[0], (result) => {
+              if (result === null) t.fail();
+              resolve(result.payload);
+            });
+          }),
+          new Promise<number[]>((resolve) => {
+            peer2.query(items[1], (result) => {
+              if (result === null) t.fail();
+              resolve(result.payload);
+            });
+          }),
+        ]).then(([[u], [v]]) => {
+          if ((u === 1 && v === 2) || (u === 2 && v === 1)) {
+            resolvePeer2Consistent();
+          }
+        });
+      }
+    },
+    (message) => {
+      t.log("Peer 2: " + message.trim());
+    },
+    randomSocketName2
+  );
+
+  const nearFuture = Math.trunc(Date.now() / 1000 + 3600);
+
+  setTimeout(() => {
+    const interpreter1 = spawn(
+      `../quinn/target/debug/quinn --server-socket /tmp/${randomSocketName1}.server --client-socket /tmp/${randomSocketName1}.client`,
+      {
+        shell: true,
+      }
+    );
+
+    const interpreter2 = spawn(
+      `../quinn/target/debug/quinn --server-socket /tmp/${randomSocketName2}.server --client-socket /tmp/${randomSocketName2}.client`,
+      {
+        shell: true,
+      }
+    );
+
+    interpreter1.stdout.pipe(interpreter2.stdin);
+    interpreter2.stdout.pipe(interpreter1.stdin);
+
+    peer1.submit([1], nearFuture, (_) => void 8);
+    peer2.submit([2], nearFuture, (_) => void 8);
   }, 100);
 
   return Promise.all([peer1Consistent, peer2Consistent]).then(() => t.pass());

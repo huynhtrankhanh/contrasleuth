@@ -139,7 +139,7 @@ fn main() {
         None => None,
     };
 
-    let unix_socket = match matches.value_of("unix-socket") {
+    let unix_socket = match matches.value_of("unix socket") {
         Some(value) => Some(value.to_owned()),
         None => None,
     };
