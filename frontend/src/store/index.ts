@@ -635,7 +635,7 @@ export const addInbox = action(
         inboxes.set(syntheticId, {
           globalId,
           label: name,
-          autosavePreference: "manual",
+          autosavePreference: "autosave",
           messages: new Map(),
           children: new Map(),
           expirationTime: undefined,
