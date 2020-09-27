@@ -47,39 +47,49 @@ const App = withRouter(
     }, [shouldEnter, page]);
 
     const goTo = (page: Page) => () => {
-      setPage(page);
+      Promise.resolve().then(() => setPage(page));
       return null;
     };
 
     const goToInbox = (inbox: Inbox) => () => {
-      setInbox(inbox);
-      setPage("inbox");
+      Promise.resolve().then(() => {
+        setInbox(inbox);
+        setPage("inbox");
+      });
       return null;
     };
 
     const goToSetup = (inbox: Inbox) => () => {
-      setInbox(inbox);
-      setPage("setup");
+      Promise.resolve().then(() => {
+        setInbox(inbox);
+        setPage("setup");
+      });
       return null;
     };
 
     const goToSettings = (inbox: Inbox) => () => {
-      setInbox(inbox);
-      setPage("inbox settings");
+      Promise.resolve().then(() => {
+        setInbox(inbox);
+        setPage("inbox settings");
+      });
       return null;
     };
 
     const goToCompose = (inbox: Inbox, inReplyTo: string | null) => () => {
-      setInbox(inbox);
-      setInReplyTo(inReplyTo);
-      setPage("compose");
+      Promise.resolve().then(() => {
+        setInbox(inbox);
+        setInReplyTo(inReplyTo);
+        setPage("compose");
+      });
       return null;
     };
 
     const goToMessage = (inbox: Inbox, messageId: string) => () => {
-      setInbox(inbox);
-      setMessageId(messageId);
-      setPage("message");
+      Promise.resolve().then(() => {
+        setInbox(inbox);
+        setMessageId(messageId);
+        setPage("message");
+      });
       return null;
     };
 
