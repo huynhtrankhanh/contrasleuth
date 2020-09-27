@@ -13,7 +13,6 @@ import {
   lookupPublicHalf,
   sendMessage,
 } from "../store";
-import underDampedSpring from "../underDampedSpring";
 import { observer } from "mobx-react";
 import InboxCard from "../components/InboxCard";
 import MultivariantSection, {
@@ -45,7 +44,7 @@ const TextInput = ({
       ref={inputRef}
       value={value}
       onChange={(event) => setValue(event.target.value)}
-      layoutTransition={underDampedSpring}
+      layout
     />
   );
 };
@@ -99,7 +98,7 @@ const DisplayImageFromFileObject = ({ file }: { file: File }) => {
   if (url === undefined) return null;
   return (
     <motion.img
-      layoutTransition={underDampedSpring}
+      layout
       style={{
         maxHeight: "500px",
         maxWidth: "calc(min(100vw - 2 * 20px, 500px))",
@@ -415,27 +414,27 @@ const ComposeMessage = observer(
         className="compose-and-view-message"
       >
         <Localized id="compose-message">
-          <Theme.Header layoutTransition={underDampedSpring} />
+          <Theme.Header layout />
         </Localized>
         {flag && (
           <>
             <motion.div
-              layoutTransition={underDampedSpring}
+              layout
               style={{ transform: "scale(0.5)" }}
               animate={{ transform: "scale(1)" }}
             >
-              <Theme.Space layoutTransition={underDampedSpring} />
+              <Theme.Space layout />
               <InboxCard inbox={inbox} displayInboxNotifications={false} />
               {inReplyTo !== null &&
                 (repliedTo !== undefined ? (
                   <>
-                    <Theme.Space layoutTransition={underDampedSpring} />
+                    <Theme.Space layout />
                     <MessagePreview message={repliedTo} inbox={inbox} />
                   </>
                 ) : (
                   <>
-                    <Theme.Space layoutTransition={underDampedSpring} />
-                    <Theme.ItemWithDetails layoutTransition={underDampedSpring}>
+                    <Theme.Space layout />
+                    <Theme.ItemWithDetails layout>
                       <div>
                         <Localized id="cant-retrieve-message" />
                       </div>
@@ -445,7 +444,7 @@ const ComposeMessage = observer(
                     </Theme.ItemWithDetails>
                   </>
                 ))}
-              <Theme.Space layoutTransition={underDampedSpring} />
+              <Theme.Space layout />
               <input
                 type="file"
                 accept="image/png, image/jpeg, image/bmp, image/webp"
@@ -468,22 +467,22 @@ const ComposeMessage = observer(
                             setValue={setSearchQuery}
                           />
                         </Localized>
-                        <Theme.Space layoutTransition={underDampedSpring} />
+                        <Theme.Space layout />
                         <Theme.Button
                           onClick={() => {
                             setSearchQuery("");
                             dispatch({ type: "clear selected" });
                             setVariant("recipients");
                           }}
-                          layoutTransition={underDampedSpring}
+                          layout
                         >
                           <Localized id="go-back" />
                         </Theme.Button>
-                        <Theme.Space layoutTransition={underDampedSpring} />
+                        <Theme.Space layout />
                         {state.selectedRecipients.length > 0 && (
-                          <Theme.Sticky layoutTransition={underDampedSpring}>
+                          <Theme.Sticky layout>
                             <Theme.Button
-                              layoutTransition={underDampedSpring}
+                              layout
                               onClick={() => {
                                 if (type === "disclosed") {
                                   dispatch({
@@ -545,11 +544,9 @@ const ComposeMessage = observer(
                                     initial={{ transform: "scale(0)" }}
                                     animate={{ transform: "scale(1)" }}
                                   >
-                                    <Theme.Space
-                                      layoutTransition={underDampedSpring}
-                                    />
+                                    <Theme.Space layout />
                                     <Theme.Item
-                                      layoutTransition={underDampedSpring}
+                                      layout
                                       onClick={() =>
                                         dispatch({
                                           type: "select recipient",
@@ -597,11 +594,9 @@ const ComposeMessage = observer(
 
                               return (
                                 <React.Fragment key={syntheticId}>
-                                  <Theme.Space
-                                    layoutTransition={underDampedSpring}
-                                  />
+                                  <Theme.Space layout />
                                   <Theme.Item
-                                    layoutTransition={underDampedSpring}
+                                    layout
                                     onClick={() =>
                                       dispatch({
                                         type: "unselect recipient",
@@ -627,11 +622,9 @@ const ComposeMessage = observer(
 
                             return (
                               <React.Fragment key={contact.ephemeralLocalId}>
-                                <Theme.Space
-                                  layoutTransition={underDampedSpring}
-                                />
+                                <Theme.Space layout />
                                 <Theme.Item
-                                  layoutTransition={underDampedSpring}
+                                  layout
                                   onClick={() =>
                                     dispatch({
                                       type: "unselect recipient",
@@ -684,11 +677,9 @@ const ComposeMessage = observer(
                           )
                           .map(({ contact, shortInboxId }) => (
                             <React.Fragment key={contact.ephemeralLocalId}>
-                              <Theme.Space
-                                layoutTransition={underDampedSpring}
-                              />
+                              <Theme.Space layout />
                               <Theme.Item
-                                layoutTransition={underDampedSpring}
+                                layout
                                 onClick={() =>
                                   dispatch({
                                     type: "select recipient",
@@ -724,16 +715,13 @@ const ComposeMessage = observer(
                       render: (setVariant) => (
                         <>
                           {state.image === undefined ? (
-                            <Theme.Button
-                              onClick={selectImage}
-                              layoutTransition={underDampedSpring}
-                            >
+                            <Theme.Button onClick={selectImage} layout>
                               <Localized id="attach-image" />
                             </Theme.Button>
                           ) : (
                             <>
                               <motion.div
-                                layoutTransition={underDampedSpring}
+                                layout
                                 style={{
                                   display: "flex",
                                   justifyContent: "center",
@@ -743,11 +731,9 @@ const ComposeMessage = observer(
                                   file={state.image}
                                 />
                               </motion.div>
-                              <Theme.Space
-                                layoutTransition={underDampedSpring}
-                              />
+                              <Theme.Space layout />
                               <Theme.Button
-                                layoutTransition={underDampedSpring}
+                                layout
                                 onClick={() =>
                                   dispatch({ type: "clear image" })
                                 }
@@ -756,15 +742,12 @@ const ComposeMessage = observer(
                               </Theme.Button>
                             </>
                           )}
-                          <Theme.Space layoutTransition={underDampedSpring} />
-                          <Theme.Button
-                            onClick={() => history.goBack()}
-                            layoutTransition={underDampedSpring}
-                          >
+                          <Theme.Space layout />
+                          <Theme.Button onClick={() => history.goBack()} layout>
                             <Localized id="go-back" />
                           </Theme.Button>
-                          <Theme.Space layoutTransition={underDampedSpring} />
-                          <motion.div layoutTransition={underDampedSpring}>
+                          <Theme.Space layout />
+                          <motion.div layout>
                             <Theme.Textarea
                               value={state.content}
                               onChange={(event) =>
@@ -778,12 +761,10 @@ const ComposeMessage = observer(
                           {(state.content.trim() !== "" ||
                             state.image !== undefined) && (
                             <>
-                              <Theme.Space
-                                layoutTransition={underDampedSpring}
-                              />
+                              <Theme.Space layout />
                               <Theme.Button
                                 onClick={() => setVariant("recipients")}
-                                layoutTransition={underDampedSpring}
+                                layout
                               >
                                 <Localized id="send" />
                               </Theme.Button>
@@ -798,13 +779,13 @@ const ComposeMessage = observer(
                         <>
                           <Theme.Button
                             onClick={() => setVariant("compose")}
-                            layoutTransition={underDampedSpring}
+                            layout
                           >
                             <Localized id="go-back" />
                           </Theme.Button>
-                          <motion.hr layoutTransition={underDampedSpring} />
+                          <motion.hr layout />
                           <Theme.ItemWithDetails
-                            layoutTransition={underDampedSpring}
+                            layout
                             className="no-bottom-rounded-corners"
                           >
                             <div>
@@ -815,7 +796,7 @@ const ComposeMessage = observer(
                             </div>
                           </Theme.ItemWithDetails>
                           <Theme.Button
-                            layoutTransition={underDampedSpring}
+                            layout
                             className="no-top-rounded-border"
                             onClick={() =>
                               setVariant("add disclosed recipients")
@@ -838,11 +819,9 @@ const ComposeMessage = observer(
                             if (contact === undefined) {
                               return (
                                 <React.Fragment key={syntheticId}>
-                                  <Theme.Space
-                                    layoutTransition={underDampedSpring}
-                                  />
+                                  <Theme.Space layout />
                                   <Theme.Item
-                                    layoutTransition={underDampedSpring}
+                                    layout
                                     onClick={() =>
                                       dispatch({
                                         type: "remove disclosed recipient",
@@ -863,11 +842,9 @@ const ComposeMessage = observer(
 
                             return (
                               <React.Fragment key={contact.ephemeralLocalId}>
-                                <Theme.Space
-                                  layoutTransition={underDampedSpring}
-                                />
+                                <Theme.Space layout />
                                 <Theme.Item
-                                  layoutTransition={underDampedSpring}
+                                  layout
                                   onClick={() =>
                                     dispatch({
                                       type: "remove disclosed recipient",
@@ -886,9 +863,9 @@ const ComposeMessage = observer(
                               </React.Fragment>
                             );
                           })}
-                          <motion.hr layoutTransition={underDampedSpring} />
+                          <motion.hr layout />
                           <Theme.ItemWithDetails
-                            layoutTransition={underDampedSpring}
+                            layout
                             className="no-bottom-rounded-corners"
                           >
                             <div>
@@ -899,7 +876,7 @@ const ComposeMessage = observer(
                             </div>
                           </Theme.ItemWithDetails>
                           <Theme.Button
-                            layoutTransition={underDampedSpring}
+                            layout
                             className="no-top-rounded-border"
                             onClick={() => setVariant("add hidden recipients")}
                           >
@@ -920,11 +897,9 @@ const ComposeMessage = observer(
                             if (contact === undefined) {
                               return (
                                 <React.Fragment key={syntheticId}>
-                                  <Theme.Space
-                                    layoutTransition={underDampedSpring}
-                                  />
+                                  <Theme.Space layout />
                                   <Theme.Item
-                                    layoutTransition={underDampedSpring}
+                                    layout
                                     onClick={() =>
                                       dispatch({
                                         type: "remove hidden recipient",
@@ -945,11 +920,9 @@ const ComposeMessage = observer(
 
                             return (
                               <React.Fragment key={contact.ephemeralLocalId}>
-                                <Theme.Space
-                                  layoutTransition={underDampedSpring}
-                                />
+                                <Theme.Space layout />
                                 <Theme.Item
-                                  layoutTransition={underDampedSpring}
+                                  layout
                                   onClick={() =>
                                     dispatch({
                                       type: "remove hidden recipient",
@@ -971,9 +944,9 @@ const ComposeMessage = observer(
                           {(state.disclosedRecipients.length > 0 ||
                             state.hiddenRecipients.length > 0) && (
                             <>
-                              <motion.hr layoutTransition={underDampedSpring} />
+                              <motion.hr layout />
                               <Theme.Button
-                                layoutTransition={underDampedSpring}
+                                layout
                                 onClick={() => setVariant("time to live")}
                               >
                                 <Localized id="send" />
@@ -997,23 +970,21 @@ const ComposeMessage = observer(
                       key: "time to live",
                       render: (setVariant) => (
                         <>
-                          <Theme.Text layoutTransition={underDampedSpring}>
+                          <Theme.Text layout>
                             <Localized id="time-to-live-explanation" />
                           </Theme.Text>
-                          <Theme.Space layoutTransition={underDampedSpring} />
+                          <Theme.Space layout />
                           <Theme.Button
-                            layoutTransition={underDampedSpring}
+                            layout
                             onClick={() => setVariant("recipients")}
                           >
                             <Localized id="go-back" />
                           </Theme.Button>
                           {state.expirationTime !== undefined && (
                             <>
-                              <Theme.Space
-                                layoutTransition={underDampedSpring}
-                              />
+                              <Theme.Space layout />
                               <Theme.Button
-                                layoutTransition={underDampedSpring}
+                                layout
                                 onClick={() => {
                                   const compressedImagePromise = new Promise<
                                     Blob | undefined
@@ -1180,9 +1151,9 @@ const ComposeMessage = observer(
                               </Theme.Button>
                             </>
                           )}
-                          <Theme.Space layoutTransition={underDampedSpring} />
+                          <Theme.Space layout />
                           <Theme.Button
-                            layoutTransition={underDampedSpring}
+                            layout
                             className={
                               state.expirationTime === 1 ? "selected" : ""
                             }
@@ -1195,9 +1166,9 @@ const ComposeMessage = observer(
                           >
                             <Localized id="a-day" />
                           </Theme.Button>
-                          <Theme.Space layoutTransition={underDampedSpring} />
+                          <Theme.Space layout />
                           <Theme.Button
-                            layoutTransition={underDampedSpring}
+                            layout
                             className={
                               state.expirationTime === 4 ? "selected" : ""
                             }
@@ -1210,9 +1181,9 @@ const ComposeMessage = observer(
                           >
                             <Localized id="four-days" />
                           </Theme.Button>
-                          <Theme.Space layoutTransition={underDampedSpring} />
+                          <Theme.Space layout />
                           <Theme.Button
-                            layoutTransition={underDampedSpring}
+                            layout
                             className={
                               state.expirationTime === 7 ? "selected" : ""
                             }

@@ -14,7 +14,6 @@ import base32 from "hi-base32";
 import calculatePublicHalfId from "../calculatePublicHalfId";
 import moment from "moment/min/moment-with-locales";
 import useTimestamp from "../useTimestamp";
-import underDampedSpring from "../underDampedSpring";
 
 const MessagePreview = observer(
   ({
@@ -75,32 +74,32 @@ const MessagePreview = observer(
     return (
       <>
         {parent ? (
-          <Theme.ItemNotifications layoutTransition={underDampedSpring}>
+          <Theme.ItemNotifications layout>
             <Localized id="parent-message" />
           </Theme.ItemNotifications>
         ) : unread && unsaved ? (
-          <Theme.ItemNotifications layoutTransition={underDampedSpring}>
+          <Theme.ItemNotifications layout>
             <Localized id="message-unread-unsaved" />
           </Theme.ItemNotifications>
         ) : unreadReplies && unsaved ? (
-          <Theme.ItemNotifications layoutTransition={underDampedSpring}>
+          <Theme.ItemNotifications layout>
             <Localized id="replies-unread-unsaved" />
           </Theme.ItemNotifications>
         ) : unsaved ? (
-          <Theme.ItemNotifications layoutTransition={underDampedSpring}>
+          <Theme.ItemNotifications layout>
             <Localized id="message-unsaved" />
           </Theme.ItemNotifications>
         ) : unread ? (
-          <Theme.ItemNotifications layoutTransition={underDampedSpring}>
+          <Theme.ItemNotifications layout>
             <Localized id="message-unread" />
           </Theme.ItemNotifications>
         ) : unreadReplies ? (
-          <Theme.ItemNotifications layoutTransition={underDampedSpring}>
+          <Theme.ItemNotifications layout>
             <Localized id="replies-unread" />
           </Theme.ItemNotifications>
         ) : null}
         <Theme.ItemWithDetails
-          layoutTransition={underDampedSpring}
+          layout
           className={displayTopRoundedCorners ? "" : "no-top-rounded-corners"}
         >
           <div>

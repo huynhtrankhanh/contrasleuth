@@ -11,7 +11,6 @@ import {
   Inbox,
   setAutosavePreference,
 } from "../store";
-import underDampedSpring from "../underDampedSpring";
 import InboxCard from "../components/InboxCard";
 import ToggleAutosave from "../components/ToggleAutosave";
 import { observer } from "mobx-react";
@@ -40,12 +39,7 @@ const InboxNameInput = ({
 );
 
 const SubmitInboxName = ({ children }: { children?: string }) => (
-  <Theme.Button
-    as={motion.input}
-    type="submit"
-    value={children}
-    layoutTransition={underDampedSpring}
-  />
+  <Theme.Button as={motion.input} type="submit" value={children} layout />
 );
 
 const InboxSettings = observer(
@@ -137,7 +131,7 @@ const InboxSettings = observer(
         animate={controls}
       >
         <Localized id="inbox-settings">
-          <Theme.Header layoutTransition={underDampedSpring} />
+          <Theme.Header layout />
         </Localized>
         {flag && (
           <>
@@ -145,20 +139,17 @@ const InboxSettings = observer(
               style={{ transform: "scale(0.5)" }}
               animate={{ transform: "scale(1)" }}
             >
-              <Theme.Space layoutTransition={underDampedSpring} />
-              <motion.div
-                layoutTransition={underDampedSpring}
-                onClick={() => history.goBack()}
-              >
+              <Theme.Space layout />
+              <motion.div layout onClick={() => history.goBack()}>
                 <InboxCard inbox={inbox} displayInboxNotifications={false} />
               </motion.div>
-              <Theme.Space layoutTransition={underDampedSpring} />
+              <Theme.Space layout />
               {variant === "root" ? (
                 (() => {
                   const contents = (
                     <>
                       <Theme.ItemWithDetails
-                        layoutTransition={underDampedSpring}
+                        layout
                         onClick={() =>
                           setAutosavePreference(
                             inbox,
@@ -172,25 +163,22 @@ const InboxSettings = observer(
                           autosave={inbox.autosavePreference === "autosave"}
                         />
                       </Theme.ItemWithDetails>
-                      <Theme.Space layoutTransition={underDampedSpring} />
+                      <Theme.Space layout />
                       <Theme.Button
                         onClick={() => setVariantAndTaint("rename")}
-                        layoutTransition={underDampedSpring}
+                        layout
                       >
                         <Localized id="rename" />
                       </Theme.Button>
                       <Theme.Space />
                       <Theme.Button
                         onClick={() => setVariantAndTaint("delete")}
-                        layoutTransition={underDampedSpring}
+                        layout
                       >
                         <Localized id="delete" />
                       </Theme.Button>
                       <Theme.Space />
-                      <Theme.Button
-                        onClick={() => history.goBack()}
-                        layoutTransition={underDampedSpring}
-                      >
+                      <Theme.Button onClick={() => history.goBack()} layout>
                         <Localized id="go-back" />
                       </Theme.Button>
                     </>
@@ -249,7 +237,7 @@ const InboxSettings = observer(
                   <Localized id="cancel">
                     <Theme.Button
                       onClick={() => setVariantAndTaint("root")}
-                      layoutTransition={underDampedSpring}
+                      layout
                     />
                   </Localized>
                 </motion.div>
