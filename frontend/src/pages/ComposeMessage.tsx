@@ -186,12 +186,20 @@ const ComposeMessage = observer(
       const inputElement = document.getElementById(
         "file-input-for-image-selection"
       ) as HTMLInputElement;
-      inputElement.addEventListener("change", () => {
+      inputElement.addEventListener("change", function handler() {
         const files = inputElement.files;
         if (files !== null && files.length >= 1) {
           const file = files[0];
           dispatch({ type: "set image", image: file });
+
+          inputElement.removeEventListener("change", handler);
+
+          inputElement.value = "";
+
+          return;
         }
+
+        inputElement.removeEventListener("change", handler);
       });
       inputElement.click();
     };
