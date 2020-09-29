@@ -412,6 +412,8 @@ const ComposeMessage = observer(
       initialState()
     );
 
+    const recipientLimit = 255;
+
     if (inbox === null) return null;
     if (!visible) return null;
 
@@ -465,6 +467,12 @@ const ComposeMessage = observer(
                     type: "disclosed" | "hidden",
                     setVariant: (key: string) => void
                   ) => {
+                    const recipientLimitExceeded =
+                      state.disclosedRecipients.length +
+                        state.hiddenRecipients.length +
+                        state.selectedRecipients.length >
+                      recipientLimit;
+
                     const selectedSet = makeSet(state.selectedRecipients);
 
                     return (
@@ -491,6 +499,7 @@ const ComposeMessage = observer(
                           <Theme.Sticky layout>
                             <Theme.Button
                               layout
+                              disabled={recipientLimitExceeded}
                               onClick={() => {
                                 if (type === "disclosed") {
                                   dispatch({
@@ -505,7 +514,9 @@ const ComposeMessage = observer(
                             >
                               <Localized
                                 id={
-                                  type === "disclosed"
+                                  recipientLimitExceeded
+                                    ? "recipient-limit-exceeded"
+                                    : type === "disclosed"
                                     ? "add-disclosed-recipients-selected"
                                     : "add-hidden-recipients-selected"
                                 }
