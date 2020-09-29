@@ -1,7 +1,7 @@
 # Contrasleuth
 _This README file has been temporarily blanked._
 
-**Note:** External contributions, including issues and pull requests are not welcome at the moment as this project hasn't reached the initial minimum viable product stage.
+**Note:** This repository must be cloned **recursively.** External contributions, including issues and pull requests are not welcome at the moment as this project hasn't reached the initial minimum viable product stage.
 
 # License
 
