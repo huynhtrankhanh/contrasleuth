@@ -113,3 +113,4 @@ parent-message-not-available-explanation = Tin nhắn trước có thể đã h�
 unsave-expire-in-future = Khi bạn bấm nút này, tin nhắn sẽ được trả về kho mạng và hết hạn trong {$formattedRelativeTime}.
 hide-expire-in-future = Khi bạn bấm nút này, tin nhắn sẽ bị ẩn và hết hạn trong {$formattedRelativeTime}.
 unsave-hide-expire-now = Vì tin nhắn này đã hết hạn, khi bạn bấm nút này tin nhắn sẽ bị xóa vĩnh viễn.
+recipient-limit-exceeded = Tin nhắn có quá nhiều người nhận.

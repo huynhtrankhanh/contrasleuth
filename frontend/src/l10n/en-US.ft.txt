@@ -119,3 +119,4 @@ parent-message-not-available-explanation = The parent message may have expired o
 unsave-expire-in-future = When you tap this button, this message will be unsaved and expire in {$formattedRelativeTime}.
 hide-expire-in-future = When you tap this button, this message will be hidden and expire in {$formattedRelativeTime}.
 unsave-hide-expire-now = As this message has already expired, tapping this button deletes this message immediately and permanently. There is no going back.
+recipient-limit-exceeded = Recipient limit exceeded.
