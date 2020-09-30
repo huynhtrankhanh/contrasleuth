@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { motion, useAnimation, AnimationControls } from "framer-motion";
 import * as Theme from "../theme";
 import Page from "../pages";
-import { useHistory } from "react-router-dom";
+import { useHistory, useLocation } from "react-router-dom";
 import { Localized } from "@fluent/react";
 import {
   inboxes,
@@ -57,7 +57,6 @@ const InboxSettings = observer(
     const [visible, setVisible] = useState(false);
     const [flag, setFlag] = useState(false);
     type Variant = "root" | "rename" | "delete";
-    const [variant, setVariant] = useState<Variant>("root");
     const controls = useAnimation();
     const history = useHistory();
 
@@ -65,6 +64,24 @@ const InboxSettings = observer(
     const inputRef = useRef<HTMLInputElement | null>(null);
     const [inboxLabel, setInboxLabel] = useState("");
     const [pageTainted, setPageTainted] = useState(false);
+
+    const location = useLocation();
+
+    const variant = (() => {
+      const state = location.state || ({} as any);
+
+      if (state.inboxSettingsVariant === undefined) return "root";
+      return state.inboxSettingsVariant;
+    })() as Variant;
+
+    const setVariant = (variant: Variant) => {
+      const oldState = location.state || ({} as any);
+
+      history.push(location.pathname, {
+        ...oldState,
+        inboxSettingsVariant: variant,
+      });
+    };
 
     useEffect(() => {
       if (page === "inbox settings") {
@@ -75,7 +92,6 @@ const InboxSettings = observer(
       } else {
         if (shouldEnter) {
           setInboxLabel("");
-          setVariant("root");
           setPageTainted(false);
         }
         if (visible) {
@@ -217,7 +233,7 @@ const InboxSettings = observer(
 
                       renameInbox(inbox, inboxLabel);
 
-                      setVariantAndTaint("root");
+                      history.goBack();
                     }}
                   >
                     <Localized id="inbox-name">
@@ -235,10 +251,7 @@ const InboxSettings = observer(
                   </form>
                   <Theme.Space />
                   <Localized id="cancel">
-                    <Theme.Button
-                      onClick={() => setVariantAndTaint("root")}
-                      layout
-                    />
+                    <Theme.Button onClick={() => history.goBack()} layout />
                   </Localized>
                 </motion.div>
               ) : variant === "delete" ? (
@@ -259,7 +272,7 @@ const InboxSettings = observer(
                     <Localized id="delete" />
                   </Theme.Button>
                   <Theme.Space />
-                  <Theme.Button onClick={() => setVariantAndTaint("root")}>
+                  <Theme.Button onClick={() => history.goBack()}>
                     <Localized id="cancel" />
                   </Theme.Button>
                 </motion.div>
