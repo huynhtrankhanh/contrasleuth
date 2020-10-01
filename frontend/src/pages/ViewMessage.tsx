@@ -171,7 +171,9 @@ const ViewMessage = observer(
     const generateLink = (message: Message) =>
       "/message/" + base32EncodedId + "/" + base32.encode(message.globalId);
 
-    markMessageAsRead(inbox, message.globalId);
+    useEffect(() => {
+      markMessageAsRead(inbox, message.globalId);
+    }, [message.globalId]);
 
     return (
       <Theme.NeatBackground
