@@ -152,6 +152,7 @@ const InboxSettings = observer(
         {flag && (
           <>
             <motion.div
+              layout
               style={{ transform: "scale(0.5)" }}
               animate={{ transform: "scale(1)" }}
             >
@@ -204,6 +205,7 @@ const InboxSettings = observer(
 
                   return (
                     <motion.div
+                      layout
                       key="root variant"
                       animate={{ transform: "scale(1)" }}
                     >
@@ -213,6 +215,7 @@ const InboxSettings = observer(
                 })()
               ) : variant === "rename" ? (
                 <motion.div
+                  layout
                   key="rename variant"
                   animate={{ transform: "scale(1)" }}
                 >
@@ -256,6 +259,7 @@ const InboxSettings = observer(
                 </motion.div>
               ) : variant === "delete" ? (
                 <motion.div
+                  layout
                   key="delete variant"
                   animate={{ transform: "scale(1)" }}
                 >

@@ -2,12 +2,12 @@ import React, { useState, useEffect } from "react";
 import { motion, useAnimation } from "framer-motion";
 import * as Theme from "../theme";
 import Page from "../pages";
-import { useHistory } from "react-router-dom";
+import { useHistory, useLocation } from "react-router-dom";
 import { Localized } from "@fluent/react";
 import { Link } from "react-router-dom";
 import {
   contacts,
-  Contact,
+  mapEphemeralLocalIdToContact,
   renameContact,
   deleteContact,
   lookupPublicHalf,
@@ -17,7 +17,6 @@ import base32 from "hi-base32";
 import { observer } from "mobx-react";
 import CopyInboxId from "../components/CopyInboxId";
 import calculatePublicHalfId from "../calculatePublicHalfId";
-import MultivariantSection from "../components/MultivariantSection";
 import BoldOccurrences from "../components/BoldOccurrences";
 import { Input, SingleFieldForm } from "../components/SingleFieldForm";
 
@@ -40,14 +39,45 @@ const Contacts = observer(
 
     type Variant =
       | { type: "root" }
-      | { type: "inbox selected variant"; contact: Contact };
+      | {
+          type: "inbox selected variant";
+          ephemeralContactId: string;
+          subvariant: Subvariant;
+          subsectionTainted: boolean;
+        };
 
-    const [variant, setVariant] = useState<Variant>({ type: "root" });
+    type Subvariant = "actions" | "rename" | "edit inbox id" | "delete";
+
+    const location = useLocation();
+
+    const variant = (() => {
+      const state = location.state || ({} as any);
+
+      if (state.contactsVariant === undefined) return { type: "root" };
+      return state.contactsVariant;
+    })() as Variant;
+
+    const setVariant = (variant: Variant) => {
+      const oldState = location.state || ({} as any);
+      history.push(location.pathname, {
+        ...oldState,
+        contactsVariant: variant,
+      });
+    };
+
     const [pageTainted, setPageTainted] = useState(false);
 
     const setVariantAndTaint = (variant: Variant) => {
       setVariant(variant);
       setPageTainted(true);
+    };
+
+    const setSubvariantAndTaint = (subvariant: Subvariant) => {
+      if (variant.type !== "inbox selected variant") {
+        console.log(new Error("This should be unreachable."));
+        return;
+      }
+      setVariant({ ...variant, subvariant, subsectionTainted: true });
     };
 
     useEffect(() => {
@@ -59,7 +89,6 @@ const Contacts = observer(
       } else {
         if (shouldEnter) {
           setSearchQuery("");
-          setVariant({ type: "root" });
           setPageTainted(false);
         }
         if (visible) {
@@ -140,8 +169,11 @@ const Contacts = observer(
                                   layout
                                   onClick={() =>
                                     setVariantAndTaint({
-                                      contact,
+                                      ephemeralContactId:
+                                        contact.ephemeralLocalId,
                                       type: "inbox selected variant",
+                                      subvariant: "actions",
+                                      subsectionTainted: false,
                                     })
                                   }
                                 >
@@ -182,8 +214,11 @@ const Contacts = observer(
                                     layout
                                     onClick={() =>
                                       setVariantAndTaint({
-                                        contact,
+                                        ephemeralContactId:
+                                          contact.ephemeralLocalId,
                                         type: "inbox selected variant",
+                                        subvariant: "actions",
+                                        subsectionTainted: false,
                                       })
                                     }
                                   >
@@ -208,6 +243,7 @@ const Contacts = observer(
 
                     return (
                       <motion.div
+                        layout
                         key="root variant"
                         animate={{ transform: "scale(1)" }}
                       >
@@ -216,17 +252,29 @@ const Contacts = observer(
                     );
                   })()
                 : (() => {
+                    const contact = mapEphemeralLocalIdToContact.get(
+                      variant.ephemeralContactId
+                    );
+
+                    console.log(contact);
+
+                    if (contact === undefined) {
+                      console.log(new Error("This should be unreachable."));
+                      return;
+                    }
+
                     const base32EncodedShortId = base32.encode(
-                      variant.contact.globalId.slice(0, 10)
+                      contact.globalId.slice(0, 10)
                     );
                     return (
                       <motion.div
+                        layout
                         key="inbox selected variant"
                         animate={{ transform: "scale(1)" }}
                       >
-                        <React.Fragment key={variant.contact.ephemeralLocalId}>
+                        <React.Fragment key={contact.ephemeralLocalId}>
                           <Theme.Item layout>
-                            <div>{variant.contact.label}</div>
+                            <div>{contact.label}</div>
                             <Localized
                               id="interpolated-inbox-id"
                               vars={{
@@ -239,236 +287,260 @@ const Contacts = observer(
                           <Theme.Space layout />
                         </React.Fragment>
                         <Theme.Space layout />
-                        <MultivariantSection
-                          variants={[
-                            {
-                              key: "actions",
-                              render: (setVariant) => (
-                                <>
-                                  <Theme.Button
-                                    layout
-                                    onClick={() => setVariant("rename")}
-                                  >
-                                    <Localized id="rename" />
-                                  </Theme.Button>
-                                  <Theme.Space layout />
-                                  <CopyInboxId
-                                    base32EncodedShortId={base32EncodedShortId}
-                                  />
-                                  <Theme.Space layout />
-                                  <Theme.Button
-                                    layout
-                                    onClick={() => setVariant("edit inbox id")}
-                                  >
-                                    <Localized id="edit-inbox-id" />
-                                  </Theme.Button>
-                                  <Theme.Space layout />
-                                  <Theme.Button
-                                    layout
-                                    onClick={() => setVariant("delete")}
-                                  >
-                                    <Localized id="delete" />
-                                  </Theme.Button>
-                                  <Theme.Space layout />
-                                  <Theme.Button
-                                    layout
-                                    onClick={() =>
-                                      setVariantAndTaint({ type: "root" })
-                                    }
-                                  >
-                                    <Localized id="go-back" />
-                                  </Theme.Button>
-                                </>
-                              ),
-                            },
-                            {
-                              key: "rename",
-                              render: (setVariant) => (
-                                <>
-                                  <SingleFieldForm
-                                    defaultValue={variant.contact.label}
-                                    validate={(input) => {
-                                      renameContact(variant.contact, input);
-                                      setVariant("actions");
+                        {(() => {
+                          const subvariant = variant.subvariant;
 
+                          if (subvariant === "actions") {
+                            const contents = (
+                              <>
+                                <Theme.Button
+                                  layout
+                                  onClick={() =>
+                                    setSubvariantAndTaint("rename")
+                                  }
+                                >
+                                  <Localized id="rename" />
+                                </Theme.Button>
+                                <Theme.Space layout />
+                                <CopyInboxId
+                                  base32EncodedShortId={base32EncodedShortId}
+                                />
+                                <Theme.Space layout />
+                                <Theme.Button
+                                  layout
+                                  onClick={() =>
+                                    setSubvariantAndTaint("edit inbox id")
+                                  }
+                                >
+                                  <Localized id="edit-inbox-id" />
+                                </Theme.Button>
+                                <Theme.Space layout />
+                                <Theme.Button
+                                  layout
+                                  onClick={() =>
+                                    setSubvariantAndTaint("delete")
+                                  }
+                                >
+                                  <Localized id="delete" />
+                                </Theme.Button>
+                                <Theme.Space layout />
+                                <Theme.Button
+                                  layout
+                                  onClick={() => history.goBack()}
+                                >
+                                  <Localized id="go-back" />
+                                </Theme.Button>
+                              </>
+                            );
+
+                            const subsectionTainted = variant.subsectionTainted;
+
+                            if (!subsectionTainted) return contents;
+
+                            return (
+                              <motion.div
+                                key="actions variant"
+                                layout
+                                animate={{ transform: "scale(1)" }}
+                              >
+                                {contents}
+                              </motion.div>
+                            );
+                          }
+
+                          if (subvariant === "rename") {
+                            return (
+                              <motion.div
+                                key="rename variant"
+                                layout
+                                animate={{ transform: "scale(1)" }}
+                              >
+                                <SingleFieldForm
+                                  defaultValue={contact.label}
+                                  validate={(input) => {
+                                    renameContact(contact, input);
+                                    history.goBack();
+
+                                    return {
+                                      type: "sync",
+                                      value: undefined,
+                                    };
+                                  }}
+                                  submitButtonText="rename"
+                                  inputPlaceholder="contact-name"
+                                />
+                                <Theme.Space layout />
+                                <Theme.Button
+                                  layout
+                                  onClick={() => history.goBack()}
+                                >
+                                  <Localized id="go-back" />
+                                </Theme.Button>
+                              </motion.div>
+                            );
+                          }
+
+                          if (subvariant === "edit inbox id") {
+                            const currentContactInboxId = base32.encode(
+                              contact.globalId.slice(0, 10)
+                            );
+                            return (
+                              <>
+                                <SingleFieldForm
+                                  defaultValue={currentContactInboxId}
+                                  validate={(input) => {
+                                    const normalizedInboxId = input
+                                      .trim()
+                                      .toUpperCase();
+
+                                    if (
+                                      currentContactInboxId ===
+                                      normalizedInboxId
+                                    ) {
+                                      history.goBack();
                                       return {
                                         type: "sync",
                                         value: undefined,
                                       };
-                                    }}
-                                    submitButtonText="rename"
-                                    inputPlaceholder="contact-name"
-                                  />
-                                  <Theme.Space layout />
-                                  <Theme.Button
-                                    layout
-                                    onClick={() => setVariant("actions")}
-                                  >
-                                    <Localized id="go-back" />
-                                  </Theme.Button>
-                                </>
-                              ),
-                            },
-                            {
-                              key: "edit inbox id",
-                              render: (setVariant) => {
-                                const currentContactInboxId = base32.encode(
-                                  variant.contact.globalId.slice(0, 10)
-                                );
-                                return (
-                                  <>
-                                    <SingleFieldForm
-                                      defaultValue={currentContactInboxId}
-                                      validate={(input) => {
-                                        const normalizedInboxId = input
-                                          .trim()
-                                          .toUpperCase();
+                                    }
 
-                                        if (
-                                          currentContactInboxId ===
-                                          normalizedInboxId
-                                        ) {
-                                          setVariant("actions");
-                                          return {
-                                            type: "sync",
-                                            value: undefined,
-                                          };
-                                        }
+                                    const valid =
+                                      normalizedInboxId.length === 16 &&
+                                      [
+                                        ...normalizedInboxId,
+                                      ].every((character) =>
+                                        "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567".includes(
+                                          character
+                                        )
+                                      );
 
-                                        const valid =
-                                          normalizedInboxId.length === 16 &&
-                                          [
-                                            ...normalizedInboxId,
-                                          ].every((character) =>
-                                            "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567".includes(
-                                              character
-                                            )
-                                          );
+                                    if (!valid) {
+                                      return {
+                                        type: "sync",
+                                        value: {
+                                          title: "invalid-inbox-id",
+                                          description:
+                                            "invalid-inbox-id-explanation",
+                                        },
+                                      };
+                                    }
 
-                                        if (!valid) {
-                                          return {
-                                            type: "sync",
-                                            value: {
-                                              title: "invalid-inbox-id",
-                                              description:
-                                                "invalid-inbox-id-explanation",
-                                            },
-                                          };
-                                        }
+                                    const decoded = base32.decode.asBytes(
+                                      normalizedInboxId
+                                    );
 
-                                        const decoded = base32.decode.asBytes(
-                                          normalizedInboxId
-                                        );
+                                    const jsonStringified = JSON.stringify(
+                                      decoded
+                                    );
 
-                                        const jsonStringified = JSON.stringify(
-                                          decoded
-                                        );
+                                    for (const contact of contacts.values()) {
+                                      const id = [
+                                        ...calculatePublicHalfId(
+                                          contact.publicEncryptionKey,
+                                          contact.publicSigningKey
+                                        ).slice(0, 10),
+                                      ];
 
-                                        for (const contact of contacts.values()) {
-                                          const id = [
-                                            ...calculatePublicHalfId(
-                                              contact.publicEncryptionKey,
-                                              contact.publicSigningKey
-                                            ).slice(0, 10),
-                                          ];
-
-                                          if (
-                                            jsonStringified ===
-                                            JSON.stringify(id)
-                                          ) {
-                                            return {
-                                              type: "sync",
-                                              value: {
-                                                title:
-                                                  "another-contact-with-same-id",
-                                                description:
-                                                  "another-contact-with-same-id-explanation",
-                                                action: {
-                                                  title:
-                                                    "search-for-the-other-contact",
-                                                  callback: () => {
-                                                    setVariantAndTaint({
-                                                      type: "root",
-                                                    });
-                                                    setSearchQuery(
-                                                      normalizedInboxId
-                                                    );
-                                                  },
-                                                },
+                                      if (
+                                        jsonStringified === JSON.stringify(id)
+                                      ) {
+                                        return {
+                                          type: "sync",
+                                          value: {
+                                            title:
+                                              "another-contact-with-same-id",
+                                            description:
+                                              "another-contact-with-same-id-explanation",
+                                            action: {
+                                              title:
+                                                "search-for-the-other-contact",
+                                              callback: () => {
+                                                // Back to Actions subvariant
+                                                history.goBack();
+                                                // Back to root variant
+                                                history.goBack();
+                                                setSearchQuery(
+                                                  normalizedInboxId
+                                                );
                                               },
+                                            },
+                                          },
+                                        };
+                                      }
+                                    }
+
+                                    return {
+                                      type: "async",
+                                      value: lookupPublicHalf(decoded).then(
+                                        (publicHalves) => {
+                                          if (publicHalves.length === 0) {
+                                            return {
+                                              title: "inbox-not-found",
+                                              description:
+                                                "inbox-not-found-explanation",
                                             };
                                           }
+
+                                          setContactPublicHalf(
+                                            contacts,
+                                            contact,
+                                            publicHalves[0].publicEncryptionKey,
+                                            publicHalves[0].publicSigningKey
+                                          );
+
+                                          history.goBack();
                                         }
+                                      ),
+                                    };
+                                  }}
+                                  submitButtonText="edit-inbox-id"
+                                  inputPlaceholder="inbox-id"
+                                />
+                                <Theme.Space layout />
+                                <Theme.Button
+                                  layout
+                                  onClick={() => history.goBack()}
+                                >
+                                  <Localized id="go-back" />
+                                </Theme.Button>
+                              </>
+                            );
+                          }
 
-                                        return {
-                                          type: "async",
-                                          value: lookupPublicHalf(decoded).then(
-                                            (publicHalves) => {
-                                              if (publicHalves.length === 0) {
-                                                return {
-                                                  title: "inbox-not-found",
-                                                  description:
-                                                    "inbox-not-found-explanation",
-                                                };
-                                              }
-
-                                              setContactPublicHalf(
-                                                contacts,
-                                                variant.contact,
-                                                publicHalves[0]
-                                                  .publicEncryptionKey,
-                                                publicHalves[0].publicSigningKey
-                                              );
-
-                                              setVariant("actions");
-                                            }
-                                          ),
-                                        };
-                                      }}
-                                      submitButtonText="edit-inbox-id"
-                                      inputPlaceholder="inbox-id"
-                                    />
-                                    <Theme.Space layout />
-                                    <Theme.Button
-                                      layout
-                                      onClick={() => setVariant("actions")}
-                                    >
-                                      <Localized id="go-back" />
-                                    </Theme.Button>
-                                  </>
-                                );
-                              },
-                            },
-                            {
-                              key: "delete",
-                              render: (setVariant) => (
-                                <>
-                                  <Theme.Text>
-                                    <Localized id="contact-delete-confirm" />
-                                  </Theme.Text>
-                                  <Theme.Space layout />
-                                  <Theme.Button
-                                    onClick={() => {
-                                      const currentContact = variant.contact;
-                                      setVariantAndTaint({ type: "root" });
-                                      deleteContact(contacts, currentContact);
-                                    }}
-                                  >
-                                    <Localized id="delete" />
-                                  </Theme.Button>
-                                  <Theme.Space layout />
-                                  <Theme.Button
-                                    layout
-                                    onClick={() => setVariant("actions")}
-                                  >
-                                    <Localized id="go-back" />
-                                  </Theme.Button>
-                                </>
-                              ),
-                            },
-                          ]}
-                          defaultVariant="actions"
-                        />
+                          if (subvariant === "delete") {
+                            return (
+                              <motion.div
+                                key="delete variant"
+                                layout
+                                animate={{ transform: "scale(1)" }}
+                              >
+                                <Theme.Text>
+                                  <Localized id="contact-delete-confirm" />
+                                </Theme.Text>
+                                <Theme.Space layout />
+                                <Theme.Button
+                                  onClick={() => {
+                                    const currentContact = contact;
+                                    // Back to Actions subvariant
+                                    history.goBack();
+                                    // Back to root variant
+                                    history.goBack();
+                                    deleteContact(contacts, currentContact);
+                                  }}
+                                >
+                                  <Localized id="delete" />
+                                </Theme.Button>
+                                <Theme.Space layout />
+                                <Theme.Button
+                                  layout
+                                  onClick={() => history.goBack()}
+                                >
+                                  <Localized id="go-back" />
+                                </Theme.Button>
+                              </motion.div>
+                            );
+                          }
+                        })()}
                       </motion.div>
                     );
                   })()}
