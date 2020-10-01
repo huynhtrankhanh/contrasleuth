@@ -587,6 +587,7 @@ const ComposeMessage = observer(
 
                               return (
                                 <motion.div
+                                  layout
                                   initial={{ transform: "scale(0)" }}
                                   animate={{ transform: "scale(1)" }}
                                 >
@@ -816,6 +817,7 @@ const ComposeMessage = observer(
 
                   return (
                     <motion.div
+                      layout
                       key="compose variant"
                       animate={{ transform: "scale(1)" }}
                     >
@@ -827,6 +829,7 @@ const ComposeMessage = observer(
                 if (variant === "recipients") {
                   return (
                     <motion.div
+                      layout
                       key="recipients variant"
                       animate={{ transform: "scale(1)" }}
                     >
@@ -1012,6 +1015,7 @@ const ComposeMessage = observer(
                 if (variant === "add disclosed recipients") {
                   return (
                     <motion.div
+                      layout
                       key="add disclosed recipients variant"
                       animate={{ transform: "scale(1)" }}
                     >
@@ -1023,6 +1027,7 @@ const ComposeMessage = observer(
                 if (variant === "add hidden recipients") {
                   return (
                     <motion.div
+                      layout
                       key="add hidden recipients variant"
                       animate={{ transform: "scale(1)" }}
                     >
@@ -1034,6 +1039,7 @@ const ComposeMessage = observer(
                 if (variant === "time to live") {
                   return (
                     <motion.div
+                      layout
                       key="time to live variant"
                       animate={{ transform: "scale(1)" }}
                     >
