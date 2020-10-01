@@ -1188,9 +1188,13 @@ const ComposeMessage = observer(
                                     expirationTime
                                   );
                                 });
-                              history.replace(
-                                "/inbox/" + base32.encode(inbox.globalId)
-                              );
+
+                              // Back to Recipients variant
+                              history.goBack();
+                              // Back to Compose variant
+                              history.goBack();
+                              // Back to the inbox
+                              history.goBack();
                             }}
                           >
                             <Localized id="send" />
