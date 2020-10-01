@@ -399,7 +399,7 @@ const prepare = (() => {
 })();
 
 test("cancel submission", (t) => {
-  t.timeout(120000);
+  t.timeout(300000);
 
   const peer = prepare(
     (_) => void 8,
@@ -416,7 +416,7 @@ test("cancel submission", (t) => {
 });
 
 test("initial reconcile round", (t) => {
-  t.timeout(120000);
+  t.timeout(300000);
 
   const [peer1Consistent, resolvePeer1Consistent] = getPromisePair<void>();
   const [peer2Consistent, resolvePeer2Consistent] = getPromisePair<void>();
@@ -496,7 +496,7 @@ test("initial reconcile round", (t) => {
 });
 
 test("reconcile on inventory change", (t) => {
-  t.timeout(120000);
+  t.timeout(300000);
 
   const [peer1Consistent, resolvePeer1Consistent] = getPromisePair<void>();
   const [peer2Consistent, resolvePeer2Consistent] = getPromisePair<void>();
@@ -569,7 +569,7 @@ test("reconcile on inventory change", (t) => {
 });
 
 test("QUIC interpreter: reconcile on inventory change", (t) => {
-  t.timeout(120000);
+  t.timeout(300000);
 
   const randomSocketName1 = uuid();
   const randomSocketName2 = uuid();
