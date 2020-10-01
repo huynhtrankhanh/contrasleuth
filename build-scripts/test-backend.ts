@@ -17,9 +17,12 @@ test.before(
       t.timeout(3600000);
 
       const backendPromise = new Promise((resolve, reject) => {
-        const buildProcess = spawn("cd ../backend && cargo build", {
-          shell: true,
-        });
+        const buildProcess = spawn(
+          "cd ../backend && cargo build --features proof-of-work-stubbed-out",
+          {
+            shell: true,
+          }
+        );
         buildProcess.stdout.on("data", (data) => process.stdout.write(data));
         buildProcess.stderr.on("data", (data) => process.stderr.write(data));
         buildProcess.on("close", (code, signal) => {

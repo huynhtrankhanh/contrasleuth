@@ -55,6 +55,12 @@ pub fn get_expected_target2(payload: &[u8], expiration_time: i64) -> Option<u64>
 }
 
 pub fn verify(payload: &[u8], nonce: i64, expiration_time: i64) -> bool {
+    #[cfg(feature = "proof-of-work-stubbed-out")]
+    {
+        // Blindly accept the proof of work.
+        return true;
+    }
+
     let expected_target = match get_expected_target2(payload, expiration_time) {
         Some(target) => target,
         None => return false,
@@ -74,6 +80,21 @@ pub async fn prove(
     target: u64,
     cancelled: std::sync::Arc<std::sync::atomic::AtomicBool>,
 ) -> Option<i64> {
+    #[cfg(feature = "proof-of-work-stubbed-out")]
+    {
+        // Wait 5 seconds so that the testing code has a chance to cancel the proof
+        // of work.
+        task::sleep(std::time::Duration::from_secs(5)).await;
+
+        if cancelled.load(std::sync::atomic::Ordering::Relaxed) {
+            return None;
+        }
+
+        // Return a dummy value ("office coffee").
+        // There is a (albeit small) chance that this value is a valid proof of work.
+        return Some(0x0ff1cec0ffee);
+    }
+
     let channel = std::sync::Arc::new(UnbufferedChannel::<Option<i64>>::new());
     let threads = num_cpus::get();
     let mut hasher = Blake2b::new(64);
