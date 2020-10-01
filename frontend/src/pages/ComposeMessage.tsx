@@ -1243,8 +1243,6 @@ const ComposeMessage = observer(
                     </motion.div>
                   );
                 }
-
-                console.log("REACHED THE");
               })()}
             </motion.div>
           </>
