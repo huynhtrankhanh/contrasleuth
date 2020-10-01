@@ -194,13 +194,19 @@ const methods = (() => {
         publicEncryptionKey,
         publicSigningKey
       );
-      contacts.set(syntheticContactId, {
+
+      const ephemeralLocalId = uuid();
+
+      const contact = observable({
         label: name,
         publicEncryptionKey,
         publicSigningKey,
         globalId,
-        ephemeralLocalId: uuid(),
+        ephemeralLocalId,
       });
+
+      contacts.set(syntheticContactId, contact);
+      mapEphemeralLocalIdToContact.set(ephemeralLocalId, contact);
     }
   );
 
@@ -757,13 +763,19 @@ export const addContact = action(
           publicEncryptionKey,
           publicSigningKey
         );
-        contacts.set(syntheticContactId, {
+
+        const ephemeralLocalId = uuid();
+
+        const contact = observable({
           label: name,
           publicEncryptionKey,
           publicSigningKey,
           globalId,
-          ephemeralLocalId: uuid(),
+          ephemeralLocalId,
         });
+
+        contacts.set(syntheticContactId, contact);
+        mapEphemeralLocalIdToContact.set(ephemeralLocalId, contact);
       })
     );
   }
@@ -821,6 +833,7 @@ export const deleteContact = action(
     contacts.delete(
       synthesizeContactId(contact.publicEncryptionKey, contact.publicSigningKey)
     );
+    mapEphemeralLocalIdToContact.delete(contact.ephemeralLocalId);
   }
 );
 
@@ -885,7 +898,7 @@ export const sendMessage = (
         inbox.sendOperationCount++;
 
         promise.then(
-          action((outcome) => {
+          action((_outcome) => {
             inbox.sendOperationCount--;
 
             inbox.pendingOperations.delete(operationId);
@@ -897,3 +910,6 @@ export const sendMessage = (
 
 export const inboxes = observable(new Map<SyntheticId, Inbox>());
 export const contacts = observable(new Map<SyntheticContactId, Contact>());
+export const mapEphemeralLocalIdToContact = observable(
+  new Map<string, Contact>()
+);

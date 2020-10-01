@@ -36,6 +36,7 @@ function MultivariantSection<T>({
         }
         return (
           <motion.div
+            layout
             key={variantDescriptor.key}
             animate={{ transform: "scale(1)" }}
           >

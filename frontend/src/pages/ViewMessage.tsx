@@ -61,6 +61,7 @@ const DisplayImageFromAttachment = ({
   return (
     <motion.div style={{ display: "flex", justifyContent: "center" }} layout>
       <motion.img
+        layout
         style={{ maxWidth: "100vw" }}
         src={url}
         alt=""
@@ -326,6 +327,7 @@ const ViewMessage = observer(
                         <>
                           <Theme.Space layout />
                           <motion.div
+                            layout
                             style={{
                               display: "flex",
                               flexDirection: "column",
@@ -361,6 +363,7 @@ const ViewMessage = observer(
                             </>
                           )}
                           <motion.div
+                            layout
                             style={{
                               display: "flex",
                               flexDirection: "column",
