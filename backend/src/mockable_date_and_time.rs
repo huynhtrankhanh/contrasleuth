@@ -29,6 +29,17 @@ use crate::mpmc_manual_reset_event::MPMCManualResetEvent;
 pub struct MockTime {
     time_changed: RwLock<MPMCManualResetEvent>,
     current_time: RwLock<i64>,
+    wake_up_time: RwLock<i64>,
+}
+
+impl Default for MockTime {
+    fn default() -> Self {
+        Self {
+            current_time: RwLock::new(0),
+            wake_up_time: RwLock::new(0),
+            time_changed: RwLock::new(MPMCManualResetEvent::new()),
+        }
+    }
 }
 
 pub trait Advance {
@@ -49,16 +60,18 @@ impl Clock for MockTime {
         let handle = self.time_changed.write().unwrap().get_handle();
         let event = self.time_changed.read().unwrap().get_event(handle);
 
-        let old_time = *self.current_time.read().unwrap();
+        let old_time = *self.wake_up_time.read().unwrap();
 
         loop {
-            event.wait().await;
-            let time = self.current_time.read().unwrap();
-            let time_difference: u64 = (*time - old_time).try_into().unwrap();
+            let time = *self.current_time.read().unwrap();
+            let time_difference: u64 = (time - old_time).try_into().unwrap();
             if time_difference >= milliseconds {
                 self.time_changed.write().unwrap().drop_handle(handle);
+                let converted: i64 = milliseconds.try_into().unwrap();
+                *self.wake_up_time.write().unwrap() += converted;
                 return;
             }
+            event.wait().await;
         }
     }
 

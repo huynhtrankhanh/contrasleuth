@@ -1351,7 +1351,7 @@ pub async fn derive(
 mod tests {
     use super::*;
     use crate::init_inventory::init_inventory;
-    use crate::mockable_date_and_time::TrueTime;
+    use crate::mockable_date_and_time::{Advance, MockTime};
     use futures::task::LocalSpawn;
 
     #[test]
@@ -1370,16 +1370,15 @@ mod tests {
         let (command_tx, command_rx) = channel(1);
         let (event_tx, event_rx) = channel(1);
 
-        std::thread::spawn(move || {
-            let connection = Connection::open_in_memory().unwrap();
-            init_inventory(
-                connection,
-                mutate_tx,
-                in_memory_rx,
-                on_disk_rx,
-                Arc::new(TrueTime {}),
-            );
-        });
+        let clock = Arc::new(MockTime::default());
+
+        {
+            let clock = clock.clone();
+            std::thread::spawn(move || {
+                let connection = Connection::open_in_memory().unwrap();
+                init_inventory(connection, mutate_tx, in_memory_rx, on_disk_rx, clock);
+            });
+        }
 
         let mut exec = futures::executor::LocalPool::new();
         let spawner = exec.spawner();
@@ -1579,8 +1578,7 @@ mod tests {
                         while let Ok(_) = drained3_rx.recv().await {}
                     }
 
-                    use std::time::Duration;
-                    task::sleep(Duration::from_millis(3100)).await;
+                    clock.advance(200000);
 
                     // Consume expiration event
                     event_rx.recv().await.unwrap();
@@ -1643,7 +1641,7 @@ mod tests {
                             unsave_message(&command_tx, global_id.clone(), inbox_id.clone()).await;
                             save_message(&command_tx, global_id.clone(), inbox_id.clone()).await;
 
-                            task::sleep(Duration::from_millis(1100)).await;
+                            clock.advance(1000);
                             // The message has expired.
 
                             unsave_message(&command_tx, global_id.clone(), inbox_id.clone()).await;
@@ -1687,7 +1685,7 @@ mod tests {
                                 _ => panic!(),
                             }
 
-                            task::sleep(Duration::from_millis(1100)).await;
+                            clock.advance(1000);
                             // The message has expired.
 
                             unsave_message(&command_tx, global_id.clone(), inbox_id.clone()).await;
