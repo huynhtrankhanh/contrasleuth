@@ -76,36 +76,25 @@ pub async fn in_memory(
     while let Ok(command) = rx.recv().await {
         match command {
             InMemory::GetOneAfterCounter(counter, tx) => {
-                let acquired = map_counter_to_hash.read().await;
-                let now = Utc::now().timestamp();
                 use std::ops::Bound::{Excluded, Unbounded};
-                for (&counter, hash) in acquired.range((Excluded(counter), Unbounded)) {
-                    match map_hash_to_expiration_time.read().await.get(&hash.clone()) {
-                        None => continue,
-                        Some(expiration_time) => {
-                            if expiration_time <= &now {
-                                continue;
-                            }
-                        }
+                let to_be_sent = (|| async {
+                    for (&counter, hash) in map_counter_to_hash
+                        .read()
+                        .await
+                        .range((Excluded(counter), Unbounded))
+                    {
+                        return Some((hash.clone(), counter));
                     }
-                    tx.send((hash.clone(), counter)).await;
-                    break;
+
+                    None
+                })()
+                .await;
+
+                if let Some(it) = to_be_sent {
+                    tx.send(it).await;
                 }
             }
             InMemory::MessageExists(hash, tx) => {
-                let now = Utc::now().timestamp();
-                match map_hash_to_expiration_time.read().await.get(&hash.clone()) {
-                    None => {
-                        tx.send(false).await;
-                        continue;
-                    }
-                    Some(expiration_time) => {
-                        if expiration_time <= &now {
-                            tx.send(false).await;
-                            continue;
-                        }
-                    }
-                }
                 tx.send(map_hash_to_counter.read().await.contains_key(&hash))
                     .await;
             }
@@ -244,19 +233,6 @@ pub async fn on_disk(
     while let Ok(command) = rx.recv().await {
         match command {
             OnDisk::GetMessage(hash, tx) => {
-                let now = Utc::now().timestamp();
-                match map_hash_to_expiration_time.read().await.get(&hash.clone()) {
-                    None => {
-                        tx.send(None).await;
-                        continue;
-                    }
-                    Some(expiration_time) => {
-                        if expiration_time <= &now {
-                            tx.send(None).await;
-                            continue;
-                        }
-                    }
-                }
                 let mut statement = connection
                     .prepare(include_str!("../sql/B. RPC/Retrieve message.sql"))
                     .unwrap();
