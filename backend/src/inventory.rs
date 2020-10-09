@@ -1,6 +1,6 @@
 use crate::message_hash::message_hash;
+use crate::mockable_date_and_time::Clock;
 use async_std::sync::{channel, Mutex, Receiver, RwLock, Sender};
-use chrono::Utc;
 use futures_intrusive::sync::ManualResetEvent;
 use rusqlite::{params, Connection};
 use serde::{Deserialize, Serialize};
@@ -72,12 +72,13 @@ pub async fn in_memory(
     map_counter_to_hash: &RwLock<BTreeMap<u128, Arc<Vec<u8>>>>,
     map_hash_to_counter: &RwLock<HashMap<Arc<Vec<u8>>, u128>>,
     map_hash_to_expiration_time: &RwLock<HashMap<Arc<Vec<u8>>, i64>>,
+    clock: impl Clock,
 ) {
     while let Ok(command) = rx.recv().await {
         match command {
             InMemory::GetOneAfterCounter(counter, tx) => {
                 let acquired = map_counter_to_hash.read().await;
-                let now = Utc::now().timestamp();
+                let now = clock.timestamp();
                 use std::ops::Bound::{Excluded, Unbounded};
                 for (&counter, hash) in acquired.range((Excluded(counter), Unbounded)) {
                     match map_hash_to_expiration_time.read().await.get(&hash.clone()) {
@@ -93,7 +94,7 @@ pub async fn in_memory(
                 }
             }
             InMemory::MessageExists(hash, tx) => {
-                let now = Utc::now().timestamp();
+                let now = clock.timestamp();
                 match map_hash_to_expiration_time.read().await.get(&hash.clone()) {
                     None => {
                         tx.send(false).await;
@@ -191,8 +192,9 @@ pub async fn purge_expired(
     map_hash_to_expiration_time: &RwLock<HashMap<Arc<Vec<u8>>, i64>>,
     connection: &Connection,
     mutate_tx: &Sender<Mutation>,
+    clock: impl Clock,
 ) {
-    let now = Utc::now().timestamp();
+    let now = clock.timestamp();
     let mut map_counter_to_hash = map_counter_to_hash.write().await;
     let mut map_expiration_time_to_hashes = map_expiration_time_to_hashes.write().await;
     let mut map_hash_to_counter = map_hash_to_counter.write().await;
@@ -237,6 +239,7 @@ pub async fn on_disk(
     map_hash_to_expiration_time: &RwLock<HashMap<Arc<Vec<u8>>, i64>>,
     connection: &Connection,
     mutate_tx: &Sender<Mutation>,
+    clock: impl Clock,
 ) {
     // It is better to execute SQLite operations sequentially. SQLite locks the database
     // during an operation, so there is nothing gained from spawning dedicated tasks for
@@ -244,7 +247,7 @@ pub async fn on_disk(
     while let Ok(command) = rx.recv().await {
         match command {
             OnDisk::GetMessage(hash, tx) => {
-                let now = Utc::now().timestamp();
+                let now = clock.timestamp();
                 match map_hash_to_expiration_time.read().await.get(&hash.clone()) {
                     None => {
                         tx.send(None).await;

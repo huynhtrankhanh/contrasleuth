@@ -24,10 +24,13 @@ mod reconcile_capnp {
 mod message_capnp {
     include!(concat!(env!("OUT_DIR"), "/capnp/message_capnp.rs"));
 }
+mod mockable_date_and_time;
 use async_std::prelude::*;
 use async_std::sync::{channel, RwLock};
 use derive_state::derive;
+use mockable_date_and_time::TrueTime;
 use state_derive_ipc::state_derive_ipc;
+use std::sync::Arc;
 use stdio_ipc::{format_struct, Message};
 
 fn main() {
@@ -233,7 +236,13 @@ fn main() {
             }
         };
 
-        init_inventory::init_inventory(connection, mutate_tx, in_memory_rx, on_disk_rx);
+        init_inventory::init_inventory(
+            connection,
+            mutate_tx,
+            in_memory_rx,
+            on_disk_rx,
+            Arc::new(TrueTime {}),
+        );
     });
 
     let spawner_clone = spawner.clone();

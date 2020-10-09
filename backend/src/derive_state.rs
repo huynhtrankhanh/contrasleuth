@@ -1351,6 +1351,7 @@ pub async fn derive(
 mod tests {
     use super::*;
     use crate::init_inventory::init_inventory;
+    use crate::mockable_date_and_time::TrueTime;
     use futures::task::LocalSpawn;
 
     #[test]
@@ -1371,7 +1372,13 @@ mod tests {
 
         std::thread::spawn(move || {
             let connection = Connection::open_in_memory().unwrap();
-            init_inventory(connection, mutate_tx, in_memory_rx, on_disk_rx);
+            init_inventory(
+                connection,
+                mutate_tx,
+                in_memory_rx,
+                on_disk_rx,
+                Arc::new(TrueTime {}),
+            );
         });
 
         let mut exec = futures::executor::LocalPool::new();

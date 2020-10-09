@@ -1,4 +1,5 @@
 use crate::inventory::{in_memory, on_disk, populate, purge_expired, InMemory, Mutation, OnDisk};
+use crate::mockable_date_and_time::Clock;
 use async_std::sync::{Mutex, Receiver, RwLock, Sender};
 use async_std::task;
 use futures::task::LocalSpawn;
@@ -12,6 +13,7 @@ pub fn init_inventory(
     mutate_tx: Sender<Mutation>,
     in_memory_rx: Receiver<InMemory>,
     on_disk_rx: Receiver<OnDisk>,
+    clock: Arc<impl Clock + Send + Sync + 'static>,
 ) {
     let connection = Arc::new(connection);
     connection
@@ -63,12 +65,14 @@ pub fn init_inventory(
         let map_counter_to_hash = map_counter_to_hash.clone();
         let map_hash_to_counter = map_hash_to_counter.clone();
         let map_hash_to_expiration_time = map_hash_to_expiration_time.clone();
+        let clock = clock.clone();
         task::spawn(async move {
             in_memory(
                 in_memory_rx,
                 &map_counter_to_hash,
                 &map_hash_to_counter,
                 &map_hash_to_expiration_time,
+                clock.as_ref(),
             )
             .await;
         });
@@ -83,11 +87,11 @@ pub fn init_inventory(
         {
             let mutate_tx = mutate_tx.clone();
 
+            let clock = clock.clone();
             spawner
                 .spawn_local_obj(
                     Box::new(async move {
                         loop {
-                            use std::time::Duration;
                             purge_expired(
                                 &map_counter_to_hash,
                                 &map_expiration_time_to_hashes,
@@ -95,9 +99,10 @@ pub fn init_inventory(
                                 &map_hash_to_expiration_time,
                                 &connection,
                                 &mutate_tx,
+                                clock.as_ref(),
                             )
                             .await;
-                            task::sleep(Duration::from_secs(1)).await;
+                            clock.wait(1000u64).await;
                         }
                     })
                     .into(),
@@ -118,6 +123,7 @@ pub fn init_inventory(
                     &map_hash_to_expiration_time,
                     &connection,
                     &mutate_tx,
+                    clock.as_ref(),
                 )
                 .await;
             })

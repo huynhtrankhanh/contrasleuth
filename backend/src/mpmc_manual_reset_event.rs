@@ -1,29 +1,29 @@
-use futures_intrusive::sync::LocalManualResetEvent;
+use futures_intrusive::sync::ManualResetEvent;
 use std::collections::HashMap;
-use std::rc::Rc;
+use std::sync::Arc;
 
 pub struct MPMCManualResetEvent {
     counter: u128,
-    events: HashMap<u128, Rc<LocalManualResetEvent>>,
+    events: HashMap<u128, Arc<ManualResetEvent>>,
 }
 
 impl MPMCManualResetEvent {
     pub fn new() -> MPMCManualResetEvent {
         MPMCManualResetEvent {
-            events: HashMap::<u128, Rc<LocalManualResetEvent>>::new(),
+            events: HashMap::<u128, Arc<ManualResetEvent>>::new(),
             counter: 0,
         }
     }
 
     pub fn get_handle(&mut self) -> u128 {
-        let event = LocalManualResetEvent::new(false);
+        let event = ManualResetEvent::new(false);
         let handle_id = self.counter;
-        self.events.insert(handle_id, Rc::new(event));
+        self.events.insert(handle_id, Arc::new(event));
         self.counter += 1;
         handle_id
     }
 
-    pub fn get_event(&self, handle: u128) -> Rc<LocalManualResetEvent> {
+    pub fn get_event(&self, handle: u128) -> Arc<ManualResetEvent> {
         let event = self.events.get(&handle).unwrap();
         event.clone()
     }
