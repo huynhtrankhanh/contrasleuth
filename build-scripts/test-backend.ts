@@ -640,24 +640,24 @@ test("QUIC interpreter: reconcile on inventory change", (t) => {
 
   const nearFuture = Math.trunc(Date.now() / 1000 + 3600);
 
+  const interpreter1 = spawn(
+    `../quinn/target/debug/quinn --server-socket /tmp/${randomSocketName1}.server --client-socket /tmp/${randomSocketName1}.client`,
+    {
+      shell: true,
+    }
+  );
+
+  const interpreter2 = spawn(
+    `../quinn/target/debug/quinn --server-socket /tmp/${randomSocketName2}.server --client-socket /tmp/${randomSocketName2}.client`,
+    {
+      shell: true,
+    }
+  );
+
+  interpreter1.stdout.pipe(interpreter2.stdin);
+  interpreter2.stdout.pipe(interpreter1.stdin);
+
   setTimeout(() => {
-    const interpreter1 = spawn(
-      `../quinn/target/debug/quinn --server-socket /tmp/${randomSocketName1}.server --client-socket /tmp/${randomSocketName1}.client`,
-      {
-        shell: true,
-      }
-    );
-
-    const interpreter2 = spawn(
-      `../quinn/target/debug/quinn --server-socket /tmp/${randomSocketName2}.server --client-socket /tmp/${randomSocketName2}.client`,
-      {
-        shell: true,
-      }
-    );
-
-    interpreter1.stdout.pipe(interpreter2.stdin);
-    interpreter2.stdout.pipe(interpreter1.stdin);
-
     peer1.submit([1], nearFuture, (_) => void 8);
     peer2.submit([2], nearFuture, (_) => void 8);
   }, 100);
