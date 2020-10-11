@@ -18,4 +18,18 @@ mv ./target/arm-linux-androideabi/release/contrasleuth ../frontend/android/app/s
 mv ./target/armv7-linux-androideabi/release/contrasleuth ../frontend/android/app/src/main/jniLibs/armeabi-v7a/libcontrasleuth.so
 mv ./target/i686-linux-android/release/contrasleuth ../frontend/android/app/src/main/jniLibs/x86/libcontrasleuth.so
 mv ./target/x86_64-linux-android/release/contrasleuth ../frontend/android/app/src/main/jniLibs/x86_64/libcontrasleuth.so
+
+cd ../quinn
+cross build --target=aarch64-linux-android --release
+cross build --target=arm-linux-androideabi --release
+cross build --target=armv7-linux-androideabi --release
+cross build --target=i686-linux-android --release
+cross build --target=x86_64-linux-android --release
+
+mv ./target/aarch64-linux-android/release/quinn ../frontend/android/app/src/main/jniLibs/arm64-v8a/libquinn.so
+mv ./target/arm-linux-androideabi/release/quinn ../frontend/android/app/src/main/jniLibs/armeabi/libquinn.so
+mv ./target/armv7-linux-androideabi/release/quinn ../frontend/android/app/src/main/jniLibs/armeabi-v7a/libquinn.so
+mv ./target/i686-linux-android/release/quinn ../frontend/android/app/src/main/jniLibs/x86/libquinn.so
+mv ./target/x86_64-linux-android/release/quinn ../frontend/android/app/src/main/jniLibs/x86_64/libquinn.so
+
 cd ../frontend

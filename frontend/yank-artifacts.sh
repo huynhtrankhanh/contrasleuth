@@ -1,2 +1,2 @@
 #!/bin/sh
-rm ./android/app/src/main/jniLibs/*/libcontrasleuth.so
+rm ./android/app/src/main/jniLibs/*/*.so
