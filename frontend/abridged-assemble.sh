@@ -2,6 +2,6 @@
 ionic cap copy
 cd ../backend
 cross build --target=aarch64-linux-android --release
-mv ./target/aarch64-linux-android/release/contrasleuth ../frontend/android/app/src/main/assets/contrasleuth-aarch64-linux-android
+mkdir -p ../frontend/android/app/src/main/jniLibs/arm64-v8a/
+mv ./target/aarch64-linux-android/release/contrasleuth ../frontend/android/app/src/main/jniLibs/arm64-v8a/libcontrasleuth.so
 cd ../frontend
-

@@ -35,12 +35,6 @@ class MyService : Service() {
     val TAG = "TAG"
     val SERVICE_IDENTIFIER = "_quic-tunnel._contrasleuth-mvp"
 
-    @Throws(IOException::class)
-    fun getCacheFile(context: Context, filename: String): File = File(context.cacheDir, filename)
-            .also {
-                it.outputStream().use { cache -> context.assets.open(filename).use { it.copyTo(cache) } }
-            }
-
     var manager: WifiP2pManager? = null
     var channel: WifiP2pManager.Channel? = null
     var handler: Handler? = null
@@ -241,15 +235,10 @@ class MyService : Service() {
                 .setOngoing(true).build()
         startForeground(2020, notification)
 
-        val executable = when (Build.SUPPORTED_ABIS[0]) {
-            "arm64-v8a" -> getCacheFile(this, "contrasleuth-aarch64-linux-android")
-            "armeabi" -> getCacheFile(this, "contrasleuth-arm-linux-androideabi")
-            "armeabi-v7a" -> getCacheFile(this, "contrasleuth-armv7-linux-androideabi")
-            "x86" -> getCacheFile(this, "contrasleuth-i686-linux-android")
-            "x86_64" -> getCacheFile(this, "contrasleuth-x86_64-linux-androideabi")
-            else -> getCacheFile(this, "contrasleuth-arm-linux-androideabi")
-        }
-        executable.setExecutable(true)
+        var libsDir = applicationInfo.nativeLibraryDir
+
+        val executable = File(libsDir, "libcontrasleuth.so")
+
         val dataDirectory = this.filesDir.absolutePath
         val sh = Runtime.getRuntime().exec(arrayOf(
                 executable.path,

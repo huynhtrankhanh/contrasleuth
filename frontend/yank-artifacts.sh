@@ -1,2 +1,2 @@
 #!/bin/sh
-rm ./android/app/src/main/assets/contrasleuth-*
+rm ./android/app/src/main/jniLibs/*/libcontrasleuth.so
