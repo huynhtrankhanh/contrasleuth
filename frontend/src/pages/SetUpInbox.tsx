@@ -29,6 +29,7 @@ const SetUpInbox = observer(
   }) => {
     const [visible, setVisible] = useState(false);
     const [flag, setFlag] = useState(false);
+    const [animating, setAnimating] = useState(false);
     const controls = useAnimation();
     const inputRef = useRef<HTMLInputElement | null>(null);
     const history = useHistory();
@@ -41,6 +42,7 @@ const SetUpInbox = observer(
         }
       } else {
         if (visible) {
+          setAnimating(true);
           controls
             .start({
               opacity: 0,
@@ -50,6 +52,7 @@ const SetUpInbox = observer(
               setVisible(false);
               setFlag(false);
               setShouldEnter(true);
+              setAnimating(false);
             });
         }
       }
@@ -57,7 +60,8 @@ const SetUpInbox = observer(
     }, [page, shouldEnter]);
 
     useEffect(() => {
-      if (visible)
+      if (visible) {
+        setAnimating(true);
         controls
           .start({
             opacity: 1,
@@ -66,7 +70,9 @@ const SetUpInbox = observer(
           .then(() => {
             setFlag(true);
             if (inputRef.current !== null) inputRef.current.focus();
+            setAnimating(false);
           });
+      }
       // eslint-disable-next-line
     }, [visible]);
 
@@ -81,6 +87,7 @@ const SetUpInbox = observer(
       <Theme.NeatBackground
         initial={{ opacity: 0, transform: "scale(1.5)" }}
         animate={controls}
+        className={animating ? "disable-interactions" : ""}
       >
         <Localized id="set-up-inbox">
           <Theme.Header layout />

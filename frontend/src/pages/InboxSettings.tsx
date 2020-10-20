@@ -56,6 +56,7 @@ const InboxSettings = observer(
   }) => {
     const [visible, setVisible] = useState(false);
     const [flag, setFlag] = useState(false);
+    const [animating, setAnimating] = useState(false);
     type Variant = "root" | "rename" | "delete";
     const controls = useAnimation();
     const history = useHistory();
@@ -95,6 +96,7 @@ const InboxSettings = observer(
           setPageTainted(false);
         }
         if (visible) {
+          setAnimating(true);
           controls
             .start({
               opacity: 0,
@@ -104,6 +106,7 @@ const InboxSettings = observer(
               setVisible(false);
               setFlag(false);
               setShouldEnter(true);
+              setAnimating(false);
             });
         }
       }
@@ -111,7 +114,8 @@ const InboxSettings = observer(
     }, [page, shouldEnter]);
 
     useEffect(() => {
-      if (visible)
+      if (visible) {
+        setAnimating(true);
         controls
           .start({
             opacity: 1,
@@ -119,7 +123,9 @@ const InboxSettings = observer(
           })
           .then(() => {
             setFlag(true);
+            setAnimating(false);
           });
+      }
       // eslint-disable-next-line
     }, [visible]);
 
@@ -145,6 +151,7 @@ const InboxSettings = observer(
       <Theme.NeatBackground
         initial={{ opacity: 0, transform: "scale(1.5)" }}
         animate={controls}
+        className={animating ? "disable-interactions" : ""}
       >
         <Localized id="inbox-settings">
           <Theme.Header layout />
@@ -222,6 +229,9 @@ const InboxSettings = observer(
                   <form
                     onSubmit={(event) => {
                       event.preventDefault();
+
+                      if (animating) return;
+
                       if (inboxLabel.trim() === "") {
                         inputControls
                           .start({ transform: "scale(1.5)" })

@@ -28,6 +28,7 @@ const InboxDetails = observer(
   }) => {
     const [visible, setVisible] = useState(false);
     const [flag, setFlag] = useState(false);
+    const [animating, setAnimating] = useState(false);
     const controls = useAnimation();
     const history = useHistory();
     const now = useTimestamp();
@@ -42,6 +43,7 @@ const InboxDetails = observer(
         }
       } else {
         if (visible) {
+          setAnimating(true);
           controls
             .start({
               opacity: 0,
@@ -51,6 +53,7 @@ const InboxDetails = observer(
               setVisible(false);
               setFlag(false);
               setShouldEnter(true);
+              setAnimating(false);
             });
         }
       }
@@ -58,7 +61,8 @@ const InboxDetails = observer(
     }, [page, shouldEnter]);
 
     useEffect(() => {
-      if (visible)
+      if (visible) {
+        setAnimating(true);
         controls
           .start({
             opacity: 1,
@@ -66,7 +70,9 @@ const InboxDetails = observer(
           })
           .then(() => {
             setFlag(true);
+            setAnimating(false);
           });
+      }
       // eslint-disable-next-line
     }, [visible]);
 
@@ -80,6 +86,7 @@ const InboxDetails = observer(
       <Theme.NeatBackground
         initial={{ opacity: 0, transform: "scale(1.5)" }}
         animate={controls}
+        className={animating ? "disable-interactions" : ""}
       >
         <Localized id="inbox">
           <Theme.Header layout />

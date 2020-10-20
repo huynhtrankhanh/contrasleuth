@@ -46,6 +46,7 @@ const AddContact = ({
 }) => {
   const [visible, setVisible] = useState(false);
   const [flag, setFlag] = useState(false);
+  const [animating, setAnimating] = useState(false);
   const controls = useAnimation();
   const inboxIdInputControls = useAnimation();
   const contactNameInputControls = useAnimation();
@@ -81,6 +82,7 @@ const AddContact = ({
       }
     } else {
       if (visible) {
+        setAnimating(true);
         controls
           .start({
             opacity: 0,
@@ -90,6 +92,7 @@ const AddContact = ({
             setVisible(false);
             setFlag(false);
             setShouldEnter(true);
+            setAnimating(false);
           });
       }
     }
@@ -97,7 +100,8 @@ const AddContact = ({
   }, [page, shouldEnter]);
 
   useEffect(() => {
-    if (visible)
+    if (visible) {
+      setAnimating(true);
       controls
         .start({
           opacity: 1,
@@ -106,7 +110,9 @@ const AddContact = ({
         .then(() => {
           setFlag(true);
           if (inboxIdInputRef.current !== null) inboxIdInputRef.current.focus();
+          setAnimating(false);
         });
+    }
     // eslint-disable-next-line
   }, [visible]);
 
@@ -122,6 +128,7 @@ const AddContact = ({
     <Theme.NeatBackground
       initial={{ opacity: 0, transform: "scale(1.5)" }}
       animate={controls}
+      className={animating ? "disable-interactions" : ""}
     >
       <Localized id="add-contact">
         <Theme.Header layout />
@@ -176,6 +183,9 @@ const AddContact = ({
             <form
               onSubmit={(event) => {
                 event.preventDefault();
+
+                if (animating) return;
+
                 if (!showContactNameInput) {
                   const normalizedInboxId = inboxId.trim().toUpperCase();
                   if (normalizedInboxId === "") {

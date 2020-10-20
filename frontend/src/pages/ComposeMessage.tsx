@@ -123,6 +123,7 @@ const ComposeMessage = observer(
   }) => {
     const [visible, setVisible] = useState(false);
     const [flag, setFlag] = useState(false);
+    const [animating, setAnimating] = useState(false);
     const controls = useAnimation();
     const inputRef = useRef<HTMLInputElement | null>(null);
     const history = useHistory();
@@ -168,6 +169,7 @@ const ComposeMessage = observer(
         }
       } else {
         if (visible) {
+          setAnimating(true);
           controls
             .start({
               opacity: 0,
@@ -177,6 +179,7 @@ const ComposeMessage = observer(
               setVisible(false);
               setFlag(false);
               setShouldEnter(true);
+              setAnimating(false);
             });
         } else {
           setSearchQuery("");
@@ -187,7 +190,8 @@ const ComposeMessage = observer(
     }, [page, shouldEnter]);
 
     useEffect(() => {
-      if (visible)
+      if (visible) {
+        setAnimating(true);
         controls
           .start({
             opacity: 1,
@@ -197,7 +201,9 @@ const ComposeMessage = observer(
             setFlag(true);
             dispatch({ type: "reset" });
             if (inputRef.current !== null) inputRef.current.focus();
+            setAnimating(false);
           });
+      }
       // eslint-disable-next-line
     }, [visible]);
 
@@ -450,7 +456,11 @@ const ComposeMessage = observer(
       <Theme.NeatBackground
         initial={{ opacity: 0, transform: "scale(1.5)" }}
         animate={controls}
-        className="compose-and-view-message"
+        className={
+          animating
+            ? "compose-and-view-message disable-interactions"
+            : "compose-and-view-message"
+        }
       >
         <Localized id="compose-message">
           <Theme.Header layout />

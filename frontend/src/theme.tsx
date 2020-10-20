@@ -18,6 +18,9 @@ export const NeatBackground = styled(motion.div)`
     color: black;
     background: white;
   }
+  &.disable-interactions {
+    pointer-events: none;
+  }
 `;
 
 export const AlternateBackground = styled(motion.div)`

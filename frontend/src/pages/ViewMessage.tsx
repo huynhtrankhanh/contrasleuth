@@ -84,6 +84,7 @@ const ViewMessage = observer(
   }) => {
     const [visible, setVisible] = useState(false);
     const [flag, setFlag] = useState(false);
+    const [animating, setAnimating] = useState(false);
     const controls = useAnimation();
     const history = useHistory();
     const location = useLocation();
@@ -97,6 +98,7 @@ const ViewMessage = observer(
         }
       } else {
         if (visible) {
+          setAnimating(true);
           controls
             .start({
               opacity: 0,
@@ -106,6 +108,7 @@ const ViewMessage = observer(
               setVisible(false);
               setFlag(false);
               setShouldEnter(true);
+              setAnimating(false);
             });
         }
       }
@@ -113,7 +116,8 @@ const ViewMessage = observer(
     }, [page, shouldEnter]);
 
     useEffect(() => {
-      if (visible)
+      if (visible) {
+        setAnimating(true);
         controls
           .start({
             opacity: 1,
@@ -121,7 +125,9 @@ const ViewMessage = observer(
           })
           .then(() => {
             setFlag(true);
+            setAnimating(false);
           });
+      }
       // eslint-disable-next-line
     }, [visible]);
 
@@ -151,7 +157,11 @@ const ViewMessage = observer(
         <Theme.NeatBackground
           initial={{ opacity: 0, transform: "scale(1.5)" }}
           animate={controls}
-          className="compose-and-view-message"
+          className={
+            animating
+              ? "compose-and-view-message disable-interactions"
+              : "compose-and-view-message"
+          }
         >
           <Localized id="message-not-found">
             <Theme.Header layout />
@@ -337,6 +347,7 @@ const ViewMessage = observer(
                       </Theme.Button>
                       <Theme.Space layout />
                       <SingleFieldForm
+                        disableInteractions={animating}
                         validate={(name) => {
                           addContact(
                             contacts,

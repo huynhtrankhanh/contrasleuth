@@ -51,11 +51,13 @@ export const SingleFieldForm = ({
   submitButtonText,
   inputPlaceholder,
   defaultValue,
+  disableInteractions = false,
 }: {
   validate: (input: string) => SyncOrAsync<ValidationError | undefined>;
   submitButtonText: string;
   inputPlaceholder: string;
   defaultValue?: string;
+  disableInteractions?: boolean;
 }) => {
   const [input, setInput] = useState(
     defaultValue === undefined ? "" : defaultValue
@@ -78,6 +80,9 @@ export const SingleFieldForm = ({
       layout
       onSubmit={(event) => {
         event.preventDefault();
+
+        if (disableInteractions) return;
+
         if (input.trim() === "") {
           controls
             .start({ transform: "scale(1.5)" })
