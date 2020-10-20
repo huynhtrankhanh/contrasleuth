@@ -32,6 +32,7 @@ const Contacts = observer(
   }) => {
     const [visible, setVisible] = useState(false);
     const [flag, setFlag] = useState(false);
+    const [animating, setAnimating] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
     const controls = useAnimation();
     const inputControls = useAnimation();
@@ -92,6 +93,7 @@ const Contacts = observer(
           setPageTainted(false);
         }
         if (visible) {
+          setAnimating(true);
           controls
             .start({
               opacity: 0,
@@ -101,6 +103,7 @@ const Contacts = observer(
               setVisible(false);
               setFlag(false);
               setShouldEnter(true);
+              setAnimating(false);
             });
         }
       }
@@ -108,7 +111,8 @@ const Contacts = observer(
     }, [page, shouldEnter]);
 
     useEffect(() => {
-      if (visible)
+      if (visible) {
+        setAnimating(true);
         controls
           .start({
             opacity: 1,
@@ -116,7 +120,9 @@ const Contacts = observer(
           })
           .then(() => {
             setFlag(true);
+            setAnimating(false);
           });
+      }
       // eslint-disable-next-line
     }, [visible]);
 
@@ -126,6 +132,7 @@ const Contacts = observer(
       <Theme.NeatBackground
         initial={{ opacity: 0, transform: "scale(1.5)" }}
         animate={controls}
+        className={animating ? "disable-interactions" : ""}
       >
         <Localized id="contacts">
           <Theme.Header layout />
@@ -368,6 +375,7 @@ const Contacts = observer(
                                   }}
                                   submitButtonText="rename"
                                   inputPlaceholder="contact-name"
+                                  disableInteractions={animating}
                                 />
                                 <Theme.Space layout />
                                 <Theme.Button
@@ -388,6 +396,7 @@ const Contacts = observer(
                               <>
                                 <SingleFieldForm
                                   defaultValue={currentContactInboxId}
+                                  disableInteractions={animating}
                                   validate={(input) => {
                                     const normalizedInboxId = input
                                       .trim()

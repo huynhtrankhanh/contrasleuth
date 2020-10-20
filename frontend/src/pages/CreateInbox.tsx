@@ -44,6 +44,7 @@ const CreateInbox = ({
 }) => {
   const [visible, setVisible] = useState(false);
   const [flag, setFlag] = useState(false);
+  const [animating, setAnimating] = useState(false);
   const [inboxLabel, setInboxLabel] = useState("");
   const controls = useAnimation();
   const inputControls = useAnimation();
@@ -59,6 +60,7 @@ const CreateInbox = ({
       }
     } else {
       if (visible) {
+        setAnimating(true);
         controls
           .start({
             opacity: 0,
@@ -68,6 +70,7 @@ const CreateInbox = ({
             setVisible(false);
             setFlag(false);
             setShouldEnter(true);
+            setAnimating(false);
           });
       }
     }
@@ -75,16 +78,19 @@ const CreateInbox = ({
   }, [page, shouldEnter]);
 
   useEffect(() => {
-    if (visible)
+    if (visible) {
+      setAnimating(true);
       controls
         .start({
           opacity: 1,
           transform: "scale(1)",
         })
         .then(() => {
+          setAnimating(false);
           setFlag(true);
           if (inputRef.current !== null) inputRef.current.focus();
         });
+    }
     // eslint-disable-next-line
   }, [visible]);
 
@@ -94,6 +100,7 @@ const CreateInbox = ({
     <Theme.NeatBackground
       initial={{ opacity: 0, transform: "scale(1.5)" }}
       animate={controls}
+      className={animating ? "disable-interactions" : ""}
     >
       <Localized id="create-inbox">
         <Theme.Header layout />
@@ -109,6 +116,9 @@ const CreateInbox = ({
             <form
               onSubmit={(event) => {
                 event.preventDefault();
+
+                if (animating) return;
+
                 if (inboxLabel.trim() === "") {
                   inputControls
                     .start({ transform: "scale(1.5)" })

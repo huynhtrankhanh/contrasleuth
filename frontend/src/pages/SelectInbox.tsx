@@ -21,6 +21,7 @@ const SelectInbox = observer(
   }) => {
     const [visible, setVisible] = useState(false);
     const [flag, setFlag] = useState(false);
+    const [animating, setAnimating] = useState(false);
     const controls = useAnimation();
 
     useEffect(() => {
@@ -30,6 +31,7 @@ const SelectInbox = observer(
           setShouldEnter(false);
         }
       } else if (visible) {
+        setAnimating(true);
         controls
           .start({
             opacity: 0,
@@ -39,27 +41,35 @@ const SelectInbox = observer(
             setVisible(false);
             setFlag(false);
             setShouldEnter(true);
+            setAnimating(false);
           });
       }
       // eslint-disable-next-line
     }, [page, shouldEnter]);
 
     useEffect(() => {
-      if (visible)
+      if (visible) {
+        setAnimating(true);
         controls
           .start({
             opacity: 1,
             transform: "scale(1)",
           })
-          .then(() => setFlag(true));
+          .then(() => {
+            setFlag(true);
+            setAnimating(false);
+          });
+      }
       // eslint-disable-next-line
     }, [visible]);
 
     if (!visible) return null;
+
     return (
       <Theme.NeatBackground
         initial={{ opacity: 0, transform: "scale(1.5)" }}
         animate={controls}
+        className={animating ? "disable-interactions" : ""}
       >
         <Localized id="select-inbox">
           <Theme.Header layout />
