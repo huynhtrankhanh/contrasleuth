@@ -1,4 +1,4 @@
 INSERT INTO
     inboxes
 VALUES
-    (?, ?, ?, ?, ?, ?, "manual")
+    (?, ?, ?, ?, ?, ?, "autosave")
