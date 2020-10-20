@@ -65,10 +65,15 @@ const InboxSettings = observer(
     const inputRef = useRef<HTMLInputElement | null>(null);
     const [inboxLabel, setInboxLabel] = useState("");
     const [pageTainted, setPageTainted] = useState(false);
+    const [pendingDeletion, setPendingDeletion] = useState(false);
 
     const location = useLocation();
 
     const variant = (() => {
+      if (pendingDeletion) {
+        // Retain the delete variant on the screen so that the animation happens smoothly.
+        return "delete";
+      }
       const state = location.state || ({} as any);
 
       if (state.inboxSettingsVariant === undefined) return "root";
@@ -94,6 +99,7 @@ const InboxSettings = observer(
         if (shouldEnter) {
           setInboxLabel("");
           setPageTainted(false);
+          setPendingDeletion(false);
         }
         if (visible) {
           setAnimating(true);
@@ -107,6 +113,8 @@ const InboxSettings = observer(
               setFlag(false);
               setShouldEnter(true);
               setAnimating(false);
+              if (pendingDeletion && inbox !== null)
+                deleteInbox(inboxes, inbox);
             });
         }
       }
@@ -280,7 +288,7 @@ const InboxSettings = observer(
                   <Theme.Button
                     onClick={() => {
                       history.replace("/");
-                      deleteInbox(inboxes, inbox);
+                      setPendingDeletion(true);
                     }}
                   >
                     <Localized id="delete" />
