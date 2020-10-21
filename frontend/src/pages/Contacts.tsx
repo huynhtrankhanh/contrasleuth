@@ -78,6 +78,12 @@ const Contacts = observer(
         console.log(new Error("This should be unreachable."));
         return;
       }
+
+      history.replace(location.pathname, {
+        ...location.state,
+        subsectionTainted: true,
+      });
+
       setVariant({ ...variant, subvariant, subsectionTainted: true });
     };
 
