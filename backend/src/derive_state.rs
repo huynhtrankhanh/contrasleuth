@@ -1402,6 +1402,13 @@ mod tests {
                 Box::new(async move {
                     let (inbox_id, _) = new_inbox(&command_tx, "Hello, World!".to_string()).await;
 
+                    set_autosave_preference(
+                        &command_tx,
+                        inbox_id.clone(),
+                        AutosavePreference::Manual,
+                    )
+                    .await;
+
                     let (hidden_recipient_public_key, hidden_recipient_private_key) =
                         box_::gen_keypair();
 
