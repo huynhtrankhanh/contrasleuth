@@ -22,18 +22,17 @@ import android.os.IBinder
 import android.os.Looper
 import android.util.Log
 import androidx.annotation.RequiresApi
-import androidx.core.app.ActivityCompat
 import androidx.core.app.NotificationCompat
 import androidx.localbroadcastmanager.content.LocalBroadcastManager
 import java.io.BufferedReader
 import java.io.File
-import java.io.IOException
 import java.io.InputStreamReader
+import java.util.*
 
 // https://stackoverflow.com/questions/47531742
 class MyService : Service() {
     val TAG = "TAG"
-    val SERVICE_IDENTIFIER = "_quic-tunnel._contrasleuth-mvp"
+    val shibboleth = "d700f843-76c5-4fc1-9485-e1309081020a";
 
     var manager: WifiP2pManager? = null
     var channel: WifiP2pManager.Channel? = null
@@ -46,25 +45,59 @@ class MyService : Service() {
         val channel = channel!!
         val handler = handler!!
         val runnable = runnable!!
+        val localBroadcastManager = localBroadcastManager!!
 
-        // Discover services
         manager.setDnsSdResponseListeners(
                 channel,
-                WifiP2pManager.DnsSdServiceResponseListener { _, _, _ -> // Handle detected service
+                WifiP2pManager.DnsSdServiceResponseListener { _, _, _ ->
                     Log.wtf(TAG, "Detected a service")
                 },
                 object : WifiP2pManager.DnsSdTxtRecordListener {
                     override fun onDnsSdTxtRecordAvailable(fullDomainName: String, txtRecordMap: MutableMap<String, String>, srcDevice: WifiP2pDevice?) {
-                        if (fullDomainName != "_quic-tunnel._contrasleuth-mvp._quic-tunnel._contrasleuth-mvp.local.") {
+                        if (!fullDomainName.contains(shibboleth)) {
                             return
                         }
 
-                        val value = txtRecordMap["payload"]
-                        if (value != null) {
-                            Log.wtf("TAG", value)
-                            return
+                        var accumulatedPayload = ""
+
+                        fun processKey(key: String) {
+                            val payload = txtRecordMap[key];
+                            if (payload != null) {
+                                accumulatedPayload += payload;
+                            }
                         }
-                        Log.wtf(TAG, "Can't retrieve service info")
+
+                        processKey("a");
+                        processKey("b");
+                        processKey("c");
+                        processKey("d");
+                        processKey("e");
+                        processKey("f");
+                        processKey("g");
+                        processKey("h");
+                        processKey("i");
+                        processKey("j");
+                        processKey("k");
+                        processKey("l");
+                        processKey("m");
+                        processKey("n");
+                        processKey("o");
+                        processKey("p");
+                        processKey("q");
+                        processKey("r");
+                        processKey("s");
+                        processKey("t");
+                        processKey("u");
+                        processKey("v");
+                        processKey("w");
+                        processKey("x");
+                        processKey("y");
+                        processKey("z");
+
+                        val intent = Intent("packet received")
+                        Log.wtf("PACKET", accumulatedPayload)
+                        intent.putExtra("payload", accumulatedPayload)
+                        localBroadcastManager.sendBroadcast(intent)
                     }
                 }
         )
@@ -82,7 +115,6 @@ class MyService : Service() {
                                                     override fun onSuccess() {
                                                         Log.wtf(TAG, "discoverServices call succeeded")
                                                         handler.postDelayed(runnable, 120000)
-
                                                     }
 
                                                     override fun onFailure(error: Int) {
@@ -115,10 +147,6 @@ class MyService : Service() {
         val appContext = applicationContext
 
         val wifiManager = appContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
-        if (wifiManager == null) {
-            Log.wtf(TAG, "Cannot get Wi-Fi system service.")
-            return
-        }
 
         if (!wifiManager.isP2pSupported()) {
             Log.wtf(TAG, "Wi-Fi Direct is not supported by the hardware or Wi-Fi is off.")
@@ -180,10 +208,34 @@ class MyService : Service() {
                     override fun onSuccess() {
                         Log.wtf(TAG, "Cleared local services")
 
-                        val record = mapOf("payload" to payload)
+                        val record = mutableMapOf<String, String>()
+                        val keys = arrayOf("a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z")
+
+                        val length = payload.length
+                        var cursor: Int = 0;
+                        var currentKey = 0
+
+                        while (cursor != length && currentKey != 26) {
+                            fun advance(cursor: Int): Int {
+                                var current = cursor
+
+                                while (true) {
+                                    if (current == length) return length
+                                    if (current - cursor >= 255) return current
+                                    current++
+                                }
+                            }
+
+                            val next = advance(cursor)
+                            record[keys[currentKey]] = payload.subSequence(cursor, next).toString()
+
+                            cursor = next
+                            currentKey++
+                        }
+
                         val info = WifiP2pDnsSdServiceInfo.newInstance(
-                                SERVICE_IDENTIFIER,
-                                SERVICE_IDENTIFIER,
+                                UUID.randomUUID().toString(),
+                                shibboleth,
                                 record
                         )
 
@@ -212,8 +264,6 @@ class MyService : Service() {
 
         runnable = Runnable { discoverServices() }
         discoverServices()
-
-        broadcastPacket("Hello, World!")
     }
 
     fun broadcastPacket(payload: String) {
@@ -236,56 +286,110 @@ class MyService : Service() {
         startForeground(2020, notification)
 
         var libsDir = applicationInfo.nativeLibraryDir
-
-        val executable = File(libsDir, "libcontrasleuth.so")
-
-        val dataDirectory = this.filesDir.absolutePath
-        val sh = Runtime.getRuntime().exec(arrayOf(
-                executable.path,
-                "--address", "0.0.0.0:0",
-                "--reverse-address", "0.0.0.0:0",
-                "--database", "$dataDirectory/backend.sqlite",
-                "--frontend-database", "$dataDirectory/frontend.sqlite"
-        ))
-        val outputStream = sh.outputStream
-        val bufferedInputStream = BufferedReader(InputStreamReader(sh.inputStream))
-
         localBroadcastManager = LocalBroadcastManager.getInstance(this)
-        establishP2p();
 
-        val thread1: Thread = object : Thread() {
-            override fun run() {
-                while (true) {
-                    val line = bufferedInputStream.readLine() ?: break
-                    val intent = Intent("stdout line")
-                    intent.putExtra("line", line)
+        fun initializeContrasleuth() {
+            val executable = File(libsDir, "libcontrasleuth.so")
+
+            val dataDirectory = this.filesDir.absolutePath
+
+            File("$dataDirectory/server.sock").delete()
+            File("$dataDirectory/client.sock").delete()
+
+            val contrasleuthProcess = Runtime.getRuntime().exec(arrayOf(
+                    executable.path,
+                    "--unix-socket", "$dataDirectory/server.sock",
+                    "--reverse-unix-socket", "$dataDirectory/client.sock",
+                    "--database", "$dataDirectory/backend.sqlite",
+                    "--frontend-database", "$dataDirectory/frontend.sqlite"
+            ))
+            val outputStream = contrasleuthProcess.outputStream
+            val bufferedInputStream = BufferedReader(InputStreamReader(contrasleuthProcess.inputStream))
+
+            establishP2p();
+
+            val thread1: Thread = object : Thread() {
+                override fun run() {
+                    while (true) {
+                        val line = bufferedInputStream.readLine() ?: break
+                        val intent = Intent("stdout line")
+                        intent.putExtra("line", line)
+                        Log.d("STDOUT", line)
+
+                        val localBroadcastManager = localBroadcastManager!!
+
+                        localBroadcastManager.sendBroadcast(intent)
+                    }
+                }
+            }
+
+            thread1.start()
+
+            val thread2: Thread = object : Thread() {
+                override fun run() {
+                    val receiver: BroadcastReceiver = object : BroadcastReceiver() {
+                        override fun onReceive(context: Context, intent: Intent) {
+                            val line = intent.getStringExtra("line")
+                            outputStream.write(line.toByteArray())
+                            outputStream.flush()
+                        }
+                    }
 
                     val localBroadcastManager = localBroadcastManager!!
 
-                    localBroadcastManager.sendBroadcast(intent)
+                    localBroadcastManager.registerReceiver(receiver, IntentFilter("stdin line"))
                 }
             }
+
+            thread2.start()
         }
 
-        thread1.start()
+        initializeContrasleuth()
 
-        val thread2: Thread = object : Thread() {
-            override fun run() {
-                val receiver: BroadcastReceiver = object : BroadcastReceiver() {
-                    override fun onReceive(context: Context, intent: Intent) {
-                        val line = intent.getStringExtra("line")
-                        outputStream.write(line.toByteArray())
-                        outputStream.flush()
+        fun initializeQuinn() {
+            val executable = File(libsDir, "libquinn.so")
+
+            val dataDirectory = this.filesDir.absolutePath
+            val quinnProcess = Runtime.getRuntime().exec(arrayOf(
+                    executable.path,
+                    "--server-socket", "$dataDirectory/server.sock",
+                    "--client-socket", "$dataDirectory/client.sock"
+            ))
+            val outputStream = quinnProcess.outputStream
+            val bufferedInputStream = BufferedReader(InputStreamReader(quinnProcess.inputStream))
+
+            val thread1: Thread = object : Thread() {
+                override fun run() {
+                    while (true) {
+                        val line = bufferedInputStream.readLine() ?: break
+                        broadcastPacket(line)
                     }
                 }
-
-                val localBroadcastManager = localBroadcastManager!!
-
-                localBroadcastManager.registerReceiver(receiver, IntentFilter("stdin line"))
             }
+
+            thread1.start()
+
+            val thread2: Thread = object : Thread() {
+                override fun run() {
+                    val receiver: BroadcastReceiver = object : BroadcastReceiver() {
+                        override fun onReceive(context: Context, intent: Intent) {
+                            val line = intent.getStringExtra("payload")
+                            outputStream.write(line.toByteArray())
+                            outputStream.write("\n".toByteArray())
+                            outputStream.flush()
+                        }
+                    }
+
+                    val localBroadcastManager = localBroadcastManager!!
+
+                    localBroadcastManager.registerReceiver(receiver, IntentFilter("packet received"))
+                }
+            }
+
+            thread2.start()
         }
 
-        thread2.start()
+        initializeQuinn()
     }
 
     @RequiresApi(Build.VERSION_CODES.O)
