@@ -75,12 +75,14 @@ const ViewMessage = observer(
     setShouldEnter,
     inbox,
     messageId,
+    clearViewMessageVariables,
   }: {
     page: Page;
     shouldEnter: boolean;
     setShouldEnter: (value: boolean) => void;
     inbox: Inbox | null;
     messageId: string | null;
+    clearViewMessageVariables: () => void;
   }) => {
     const [visible, setVisible] = useState(false);
     const [flag, setFlag] = useState(false);
@@ -109,6 +111,8 @@ const ViewMessage = observer(
               setFlag(false);
               setShouldEnter(true);
               setAnimating(false);
+
+              clearViewMessageVariables();
             });
         }
       }
@@ -842,7 +846,9 @@ const ViewMessage = observer(
                         <Localized id="go-back" />
                       </Theme.Button>
                       {[
-                        ...inbox.children.get(synthesizeId(message.globalId)),
+                        ...(inbox.children.get(
+                          synthesizeId(message.globalId)
+                        ) || []),
                       ].map((syntheticId) => {
                         const message = inbox.messages.get(syntheticId);
                         if (message === undefined) return null;

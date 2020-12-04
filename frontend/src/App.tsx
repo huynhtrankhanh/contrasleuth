@@ -46,6 +46,10 @@ const App = withRouter(
       }
     }, [shouldEnter, page]);
 
+    const clearViewMessageVariables = () => {
+      setMessageId(null);
+    };
+
     const goTo = (page: Page) => () => {
       Promise.resolve().then(() => setPage(page));
       return null;
@@ -147,6 +151,7 @@ const App = withRouter(
           setShouldEnter={setShouldEnter}
           inbox={inbox}
           messageId={messageId}
+          clearViewMessageVariables={clearViewMessageVariables}
         />
         <Switch>
           <Route exact path="/select-inbox" component={goTo("select inbox")} />

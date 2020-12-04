@@ -221,7 +221,7 @@ class MyService : Service() {
 
                                 while (true) {
                                     if (current == length) return length
-                                    if (current - cursor >= 255) return current
+                                    if (current - cursor >= 250) return current
                                     current++
                                 }
                             }
@@ -362,6 +362,7 @@ class MyService : Service() {
                 override fun run() {
                     while (true) {
                         val line = bufferedInputStream.readLine() ?: break
+                        Log.wtf("STDOUT", line)
                         broadcastPacket(line)
                     }
                 }
@@ -387,6 +388,19 @@ class MyService : Service() {
             }
 
             thread2.start()
+
+            val bufferedErrorStream = BufferedReader(InputStreamReader(quinnProcess.errorStream))
+
+            val thread3: Thread = object : Thread() {
+                override fun run() {
+                    while (true) {
+                        val line = bufferedErrorStream.readLine() ?: break
+                        Log.wtf("STDERR", line)
+                    }
+                }
+            }
+
+            thread3.start()
         }
 
         initializeQuinn()
