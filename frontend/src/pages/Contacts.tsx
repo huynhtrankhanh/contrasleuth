@@ -80,7 +80,7 @@ const Contacts = observer(
       }
 
       history.replace(location.pathname, {
-        ...location.state,
+        ...(location.state as object),
         subsectionTainted: true,
       });
 
