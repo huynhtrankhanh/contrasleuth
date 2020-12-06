@@ -32,13 +32,14 @@ import java.util.*
 // https://stackoverflow.com/questions/47531742
 class MyService : Service() {
     val TAG = "TAG"
-    val shibboleth = "d700f843-76c5-4fc1-9485-e1309081020a";
+    val shibboleth = "d700f843-76c5-4fc1-9485-e1309081020a"
 
     var manager: WifiP2pManager? = null
     var channel: WifiP2pManager.Channel? = null
     var handler: Handler? = null
     var runnable: Runnable? = null
     var localBroadcastManager: LocalBroadcastManager? = null
+    var serviceRequest: WifiP2pDnsSdServiceRequest? = null
 
     private fun discoverServices() {
         val manager = manager!!
@@ -102,7 +103,7 @@ class MyService : Service() {
                 }
         )
 
-        val serviceRequest = WifiP2pDnsSdServiceRequest.newInstance()
+        val serviceRequest = serviceRequest!!
         manager.removeServiceRequest(channel, serviceRequest,
                 object : WifiP2pManager.ActionListener {
                     override fun onSuccess() {
@@ -168,6 +169,8 @@ class MyService : Service() {
             Log.wtf(TAG, "Cannot initialize Wi-Fi Direct.")
             return
         }
+
+        serviceRequest = WifiP2pDnsSdServiceRequest.newInstance()
 
         val intentFilter = IntentFilter().apply {
             addAction(WifiP2pManager.WIFI_P2P_STATE_CHANGED_ACTION)
