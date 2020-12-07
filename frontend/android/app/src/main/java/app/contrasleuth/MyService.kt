@@ -56,6 +56,7 @@ class MyService : Service() {
                 object : WifiP2pManager.DnsSdTxtRecordListener {
                     override fun onDnsSdTxtRecordAvailable(fullDomainName: String, txtRecordMap: MutableMap<String, String>, srcDevice: WifiP2pDevice?) {
                         if (!fullDomainName.contains(shibboleth)) {
+                            Log.wtf(TAG, "Received a packet from another app.")
                             return
                         }
 
@@ -119,7 +120,7 @@ class MyService : Service() {
                                                     }
 
                                                     override fun onFailure(error: Int) {
-                                                        Log.wtf(TAG, "discoverServices call failed")
+                                                        Log.wtf(TAG, "discoverServices call failed " + error)
                                                     }
                                                 })
                                     }
