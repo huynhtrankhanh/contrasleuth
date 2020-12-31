@@ -1,0 +1,2 @@
+#!/bin/bash
+echo $(node "$(dirname "$0")/string-replace" $@) | xargs /home/contrasleuthonbaremetal/bin/docker

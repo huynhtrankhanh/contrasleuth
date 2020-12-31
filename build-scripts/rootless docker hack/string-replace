@@ -1,0 +1,10 @@
+const [_1, _2, ...arguments] = process.argv;
+console.log(
+	arguments.join(" ")
+		.replace(" --userns host", "")
+		.replace(" --user 1001:1001", "")
+		.replace(" -e USER=contrasleuthonbaremetal", "")
+		.replace("sh -c ", "sh -c \"")
+		.replace("-i -t", "")
+	+ "\""
+);
