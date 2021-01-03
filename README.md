@@ -2,7 +2,7 @@
 
 _This README file has been temporarily blanked._
 
-**Note:** This repository must be cloned **recursively**. External contributions, including issues and pull requests are not welcome at the moment. An interaction limit is set in GitHub to enforce this.
+**Note:** This repository must be cloned **recursively**. External contributions, including issues and pull requests are not welcome at the moment. An interaction limit is set on GitHub to enforce this.
 
 # License
 
