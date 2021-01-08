@@ -1,4 +1,5 @@
 # Announcement: Project Perpetually Abandoned
+Postmortem write-up coming soon.
 
 # Contrasleuth
 
