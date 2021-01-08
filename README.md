@@ -1,3 +1,5 @@
+# Announcement: Project Perpetually Abandoned
+
 # Contrasleuth
 
 _This README file has been temporarily blanked._
