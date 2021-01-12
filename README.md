@@ -1,5 +1,4 @@
 # Announcement: Project Perpetually Abandoned
-[Postmortem write-up.](./POSTMORTEM.md)
 
 # Contrasleuth
 
