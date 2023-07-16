@@ -98,7 +98,7 @@ cd frontend
 npm start
 ```
 
-To build the android app:
+To build the Android app:
 
 **Build Rust binaries:**
 ```sh
