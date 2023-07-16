@@ -60,6 +60,20 @@ If the decryption is not successful, it keeps advancing to the next intermediate
 
 It should be noted that this algorithm is designed to work with multiple recipients. Each recipient would have the ability to decrypt the main message using their own private key.
 
+### Frontend
+
+The frontend is built with React and MobX for state management. It also uses Ionic for UI components, React Router for navigation, Fluent for internationalization, and Framer for animation.
+
+Starting with the landing page, the application allows users to select, create, or view the details of an inbox, which can be performed via different functional pages. The information held in each inbox is propagated through the application and displayed alongside related functions. If an inbox isn't found, the application displays an error page.
+
+For creating an inbox, the application provides form input and functions to add and manage contact names. Elsewhere, options for setting up an inbox include renaming it, setting up message autosave preferences, and deleting the inbox.
+
+In a selected inbox, users have the ability to interact with their messages. Options for this include adding recipients (either disclosed or hidden), setting a message expiration time of one, four, or seven days, and message attachment handling. Message handling also includes functions for marking messages as read, hiding messages, and saving messages. 
+
+Moreover, users can reply to messages, and any messages that are replied to are nested underneath the initial message.
+
+Other interactions include being able to access contact lists, add contacts to this list, and manage details of individual contacts, such as renaming entries or editing contact's Inbox ID.
+
 ## Video Demo
 
 *TODO*
