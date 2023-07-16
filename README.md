@@ -42,6 +42,24 @@ Unsaved messages are removed from the database when they expire. If a saved mess
 
 One special feature is the ability to encode messages that can be sent to 'hidden' recipients. These are recipients whose public keys are not disclosed in the usual recipient list.
 
+### Encryption Algorithm
+
+The encryption algorithm works by taking plaintext data and an array of public keys as input. 
+
+Firstly, a new, unique nonce and key pair are generated for this message. The nonce is saved into the output ciphertext, followed by the public key of the pair. Then, a new secret key is created.
+
+Next, the secret key and the number of intended recipients of the message are merged together. The algorithm cycles through each public key, creating a shared key from each public key and the private key from the previously generated pair. An intermediate ciphertext is created by encrypting the merged secret key and recipient count using this shared key, and this intermediate ciphertext is saved to the output as well. 
+
+Finally, the plaintext is encrypted using the original secret key and nonce, and this final ciphertext is appended to the output. 
+
+The decryption of the ciphertext follows a reverse process. It keeps extracting bytes to restore the nonce, the public key and intermediate ciphertexts. Each intermediate ciphertext is tried to be decrypted with a shared key generated from the decoder's private key and the originally stored public key. 
+
+The first successful decryption reveals a key that can decrypt the actual message and the remaining number of recipients. It then skips over the intermediate ciphertexts for the remaining recipients and proceeds to decrypt the actual message. 
+
+If the decryption is not successful, it keeps advancing to the next intermediate ciphertext, until it finds one it can decrypt or it runs out of bytes. 
+
+It should be noted that this algorithm is designed to work with multiple recipients. Each recipient would have the ability to decrypt the main message using their own private key.
+
 ## Video Demo
 
 *TODO*
