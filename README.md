@@ -78,7 +78,7 @@ Other interactions include being able to access contact lists, add contacts to t
 
 ## Video Demo
 
-*TODO*
+https://github.com/huynhtrankhanh/contrasleuth/releases/download/video/YouCut_20230716_182723993.mp4
 
 ## Build Process
 
