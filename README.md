@@ -2,6 +2,8 @@
 
 Contrasleuth was an end-to-end encrypted messaging app on Android that was designed to work without the internet. The project ultimately failed.
 
+This project is a good demonstration of my skills back then. These days I'm even better at coding.
+
 **Press coverage:** https://thanhnien.vn/cau-hoc-tro-dam-me-nghien-cuu-khoa-hoc-185926739.htm
 
 ## Design
