@@ -26,7 +26,7 @@ The app communicates with other devices using Wi-Fi Direct and Wi-Fi P2P DNS-SD.
 
 Finally, the app loops the service discovery process every two minutes to continuously check for incoming packets. All important events and operations are logged.
 
-## Backend
+### Backend
 
 The backend is the Contrasleuth process written in Rust.
 
