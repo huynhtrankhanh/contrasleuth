@@ -16,6 +16,16 @@ The transport layer is a modified version of the `quinn` library. Because of bit
 
 The outer shell is written with Ionic Framework and has Kotlin code to connect backend, frontend and transport layer together. The transport layer also has code to leverage native APIs for communication.
 
+### General Flow
+
+The app starts by creating a persistent notification channel, setting up local broadcasts, deleting any pre-existing socket files, and initializing two native processes. These processes, `Contrasleuth` and `Quinn` are written in Rust and interact with the app's code via standard input/output and attempted writes to Unix socket files. 
+
+There are key threads in place for servicing each of these processes. For instance, there are threads that continuously read from the processes' standard output and broadcast any output via an 'stdout line' intent. Other threads are listening for 'stdin line' and 'packet received' intents to feed input back into the processes. 
+
+The app communicates with other devices using Wi-Fi Direct and Wi-Fi P2P DNS-SD. It maintains parallel systems for sending and receiving information using these technologies: any packet to be sent is broadcast as a Wi-Fi P2P service and any packet received is through discovery of other devices' services. The payload in these packets is broken into pieces and sent across multiple DNS-SD TXT records. 
+
+Finally, the app loops the service discovery process every two minutes to continuously check for incoming packets. All important events and operations are logged.
+
 ## Video Demo
 
 *TODO*
