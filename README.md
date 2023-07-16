@@ -26,6 +26,22 @@ The app communicates with other devices using Wi-Fi Direct and Wi-Fi P2P DNS-SD.
 
 Finally, the app loops the service discovery process every two minutes to continuously check for incoming packets. All important events and operations are logged.
 
+## Backend
+
+The backend is the Contrasleuth process written in Rust.
+
+The backend of the application is structured around generating and managing keys and messages in an encrypted communication system. It uses cryptographic libraries to create key pairs and encrypt/decrypt messages, with added features such as autosaving and labelling. 
+
+At the start, the backend initializes an inventory system to store messages and sets up a database connection. It then waits to receive commands to create a new 'inbox', set preferences, get a public key entry, encode or save a message, and more. 
+
+The 'inbox' is essentially equivalent to an account. Each inbox has a unique id, label, public encryption key, private encryption key and an autosave preference. 
+
+After receiving a command to create an inbox, it generates a key pair both for encryption and signing. These public keys (public_encryption_key and public_signing_key) are then used to identify the inbox by forming a "global id". 
+
+Unsaved messages are removed from the database when they expire. If a saved message expires, it is flagged but not removed. 
+
+One special feature is the ability to encode messages that can be sent to 'hidden' recipients. These are recipients whose public keys are not disclosed in the usual recipient list.
+
 ## Video Demo
 
 *TODO*
