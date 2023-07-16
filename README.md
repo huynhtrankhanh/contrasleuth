@@ -79,3 +79,31 @@ Other interactions include being able to access contact lists, add contacts to t
 ## Video Demo
 
 *TODO*
+
+## Build Process
+
+Unfortunately, this piece of software is pretty hard to build. You need to install Docker, Node.js, Rust and Cargo. You can partially run the app on desktop but to actually build the Android app, you also need Android Studio.
+
+To partially run the app on desktop:
+
+**Run backend:**
+```sh
+cd stdio-socketio-proxy
+npm start
+```
+
+**Run frontend:**
+```sh
+cd frontend
+npm start
+```
+
+To build the android app:
+
+**Build Rust binaries:**
+```sh
+cd frontend
+npm run assemble
+```
+
+Then go through the instructions at https://ionicframework.com/docs/developing/android to run the app on Android.
